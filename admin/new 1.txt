@@ -1,0 +1,231 @@
+<?php
+require_once("../config/koneksi.php");
+
+// --- AMBIL DATA BERDASARKAN ID --- //
+if (isset($_GET['id_pengajuan'])) {
+    $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
+    $query = mysqli_query($config, "
+        SELECT p.*, j.nama_jenis, u.nama_lengkap, u.kode_pokja
+        FROM tb_pengajuan_dokumen p
+        LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
+        LEFT JOIN tb_user u ON p.id_user = u.id_user
+        WHERE p.id_pengajuan = '$id_pengajuan'
+    ");
+    $data = mysqli_fetch_assoc($query);
+
+    if (!$data) {
+        echo "<script>
+                alert('Data pengajuan tidak ditemukan!');
+                window.location = 'main_admin.php?unit=pengajuan';
+              </script>";
+        exit;
+    }
+} else {
+    echo "<script>
+            alert('ID Pengajuan tidak ditemukan!');
+            window.location = 'main_admin.php?unit=pengajuan';
+          </script>";
+    exit;
+}
+
+// --- PROSES VERIFIKASI (Disetujui) --- //
+if (isset($_POST['verifikasi'])) {
+    mysqli_query($config, "
+        UPDATE tb_pengajuan_dokumen 
+        SET status='Disetujui' 
+        WHERE id_pengajuan='$id_pengajuan'
+    ");
+    echo "<script>
+            alert('Pengajuan berhasil diverifikasi (Disetujui)!');
+            window.location='main_admin.php?unit=pengajuan';
+          </script>";
+    exit;
+}
+
+// --- PROSES TOLAK --- //
+if (isset($_POST['tolak'])) {
+    mysqli_query($config, "
+        UPDATE tb_pengajuan_dokumen 
+        SET status='Ditolak'
+        WHERE id_pengajuan='$id_pengajuan'
+    ");
+    echo "<script>
+            alert('Pengajuan telah ditolak!');
+            window.location='main_admin.php?unit=pengajuan';
+          </script>";
+    exit;
+}
+
+// --- PROSES UPLOAD PDF FINAL (untuk status Disetujui) --- //
+if (isset($_POST['upload_pdf'])) {
+    $file_tmp = $_FILES['file_pdf']['tmp_name'];
+    $file_name = $_FILES['file_pdf']['name'];
+    $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+    if ($file_ext != 'pdf') {
+        echo "<script>alert('Hanya file PDF yang diperbolehkan!');</script>";
+    } else {
+        $new_name = 'dokumen_final_' . time() . '.pdf';
+        $upload_path = '../assets/upload/draft_word/' . $new_name;
+
+        // Hapus file lama jika ada
+        if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
+            unlink('../assets/upload/draft_word/' . $data['file_draft']);
+        }
+
+        if (move_uploaded_file($file_tmp, $upload_path)) {
+            // Update database
+            mysqli_query($config, "
+                UPDATE tb_pengajuan_dokumen 
+                SET file_draft='$new_name', status='Selesai'
+                WHERE id_pengajuan='$id_pengajuan'
+            ");
+
+            echo "<script>
+                    alert('File PDF berhasil diupload dan status diubah menjadi SELESAI!');
+                    window.location='main_admin.php?unit=pengajuan';
+                  </script>";
+            exit;
+        } else {
+            echo "<script>alert('Gagal mengupload file!');</script>";
+        }
+    }
+}
+
+// --- WARNA BADGE STATUS --- //
+function getBadgeClass($status) {
+    switch ($status) {
+        case 'Menunggu Verifikasi': return 'badge badge-warning';
+        case 'Disetujui': return 'badge badge-success';
+        case 'Ditolak': return 'badge badge-danger';
+        case 'Selesai': return 'badge badge-primary';
+        default: return 'badge badge-secondary';
+    }
+}
+?>
+
+<section class="content-header">
+    <h1>Detail Pengajuan Dokumen</h1>
+</section>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card card-default">
+            <div class="card-header">
+                <h3 class="card-title">Informasi Pengajuan dari Pokja</h3>
+            </div>
+
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <tr>
+                        <th width="200">Kode Pokja</th>
+                        <td><?= htmlspecialchars($data['kode_pokja']); ?> (<?= htmlspecialchars($data['nama_lengkap']); ?>)</td>
+                    </tr>
+                    <tr>
+                        <th>Jenis Surat</th>
+                        <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Judul Dokumen</th>
+                        <td><?= htmlspecialchars($data['judul_dokumen']); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Tanggal Dokumen</th>
+                        <td><?= date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Tanggal Ajuan</th>
+                        <td><?= date('d-m-Y', strtotime($data['tanggal_ajuan'])); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        <td>
+                            <span class="<?= getBadgeClass($data['status']); ?>">
+                                <?= htmlspecialchars($data['status']); ?>
+                            </span>
+
+                            <?php if ($data['status'] == 'Menunggu Verifikasi'): ?>
+                                <!-- Tombol Verifikasi dan Tolak -->
+                                <form method="POST" class="d-inline-block ml-2">
+                                    <button type="submit" name="verifikasi" class="btn btn-sm btn-success">
+                                        <i class="fas fa-check"></i> Verifikasi
+                                    </button>
+                                </form>
+
+                                <form method="POST" class="d-inline-block ml-1">
+                                    <button type="submit" name="tolak" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menolak pengajuan ini?')">
+                                        <i class="fas fa-times"></i> Tolak
+                                    </button>
+                                </form>
+                            <?php elseif ($data['status'] == 'Disetujui'): ?>
+                                <!-- Upload PDF Final -->
+                                <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2">
+                                    <input type="hidden" name="id_pengajuan" value="<?= $data['id_pengajuan']; ?>">
+                                    <input type="file" name="file_pdf" accept="application/pdf" required>
+                                    <button type="submit" name="upload_pdf" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-upload"></i> Upload PDF Final
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
+                    <?php if ($data['status'] == 'Disetujui' || $data['status'] == 'Selesai'): ?>
+                    <tr>
+                        <th>Nomor Dokumen</th>
+                        <td><?= !empty($data['nomor_surat']) ? htmlspecialchars($data['nomor_surat']) : '<em>Belum ada nomor</em>'; ?></td>
+                    </tr>
+                    <tr>
+                        <th>Catatan Admin</th>
+                        <td><?= !empty($data['catatan_admin']) ? htmlspecialchars($data['catatan_admin']) : '<em>Belum ada catatan</em>'; ?></td>
+                    </tr>
+                    <?php else: ?>
+                    <tr>
+                        <th>Catatan Awal</th>
+                        <td><?= !empty($data['catatan']) ? htmlspecialchars($data['catatan']) : '<em>Belum ada catatan</em>'; ?></td>
+                    </tr>
+                    <?php endif; ?>
+                </table>
+
+                <hr>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <a href="../assets/upload/draft_word/<?= $data['file_draft']; ?>" 
+                           class="btn btn-app bg-info mr-2" download>
+                            <i class="fas fa-download"></i> Download
+                        </a>
+
+                        <button type="button" class="btn btn-app bg-success" onclick="openAndPrint()">
+                            <i class="fas fa-print"></i> Cetak
+                        </button>
+                    </div>
+                </div>
+
+                <?php if (!empty($data['file_draft'])): ?>
+                    <script>
+                    function openAndPrint() {
+                        const fileUrl = "../assets/upload/draft_word/<?= $data['file_draft']; ?>";
+                        const printWindow = window.open(fileUrl, "_blank");
+                        if (printWindow) {
+                            printWindow.onload = function() {
+                                printWindow.focus();
+                                printWindow.print();
+                            };
+                        } else {
+                            alert("Izinkan pop-up di browser agar dapat mencetak dokumen otomatis.");
+                        }
+                    }
+                    </script>
+                <?php else: ?>
+                    <p><em>Tidak ada file yang dilampirkan.</em></p>
+                <?php endif; ?>
+            </div>
+
+            <div class="card-footer">
+                <a class="btn btn-app bg-warning" href="main_admin.php?unit=pengajuan">
+                    <i class="fas fa-reply"></i> Kembali
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
