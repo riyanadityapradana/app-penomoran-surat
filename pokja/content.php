@@ -33,4 +33,9 @@ else if ($_GET['unit'] == "detail_pengesahan"){
 else if ($_GET['unit'] == "rekap"){
   require_once("unit/rekap/rekap.php");
 }
+
+//Kirim Email
+else if ($_GET['unit'] == "kirim_email"){
+  require_once("unit/pengajuan/kirim_email.php");
+}
 ?>

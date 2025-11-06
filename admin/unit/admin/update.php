@@ -19,17 +19,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nama_lengkap = mysqli_real_escape_string($config, $_POST['nama_lengkap']);
     $username     = mysqli_real_escape_string($config, $_POST['username']);
     $password     = mysqli_real_escape_string($config, $_POST['password']);
+	$email_user   = mysqli_real_escape_string($config, $_POST['email_user']);
 
     // Cek apakah password ingin diubah
     if (!empty($password)) {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         $query = "UPDATE tb_user 
                   SET nama_lengkap='$nama_lengkap', username='$username', 
-                  password='$hashed_password' WHERE id_user='$id_user'";
+                  email_user='$email_user', password='$hashed_password' WHERE id_user='$id_user'";
     } else {
         // Password tidak diubah
         $query = "UPDATE tb_user 
-                  SET nama_lengkap='$nama_lengkap', username='$username'
+                  SET nama_lengkap='$nama_lengkap', username='$username', email_user='$email_user'
                   WHERE id_user='$id_user'";
     }
 
@@ -65,6 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <label>Nama Lengkap</label>
                                 <input type="text" name="nama_lengkap" class="form-control" 
                                        value="<?php echo htmlspecialchars($data['nama_lengkap']); ?>" required>
+                            </div>
+							<div class="form-group">
+                                <label>Email Pengguna</label>
+                                <input type="email" name="email_user" class="form-control" 
+                                       value="<?php echo htmlspecialchars($data['email_user']); ?>" required>
                             </div>
                             <div class="form-group">
                                 <label>Username</label>

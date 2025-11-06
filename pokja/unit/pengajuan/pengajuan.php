@@ -20,19 +20,19 @@
 	<div class="container-fluid">
 		<div class="card">
 			<div class="card-header">
-				<div class="card-tools" style="float: left; text-align: left;">
+				<div class="card-tools" style="float: left;">
 					<a href="?unit=create_pengajuan" class="btn btn-tool btn-sm" style="background:rgba(0, 123, 255, 1)">
 						<i class="fas fa-plus-square" style="color: white;"> Tambah Data</i>
 					</a>
 				</div>
-				<div class="card-tools" style="float: right; text-align: right;">
+				<div class="card-tools" style="float: right;">
 					<a href="#" class="btn btn-tool btn-sm" data-card-widget="collapse" style="background:rgba(69, 77, 85, 1)">
 						<i class="fas fa-bars"></i>
 					</a>
 				</div>
 			</div>
 			<div class="card-body">
-				 <table id="example1" class="table table-bordered table-striped text-center">
+				<table id="example2" class="table table-bordered table-striped text-center">
 					<thead style="background:rgb(0, 0, 0, 1); color: white;">
 						<tr>
 							<th>No</th>
@@ -62,6 +62,7 @@
 							while ($row = mysqli_fetch_assoc($query)) {
 								$tgl_dok = date('d-m-Y', strtotime($row['tanggal_dokumen']));
 								$tgl_ajuan = date('d-m-Y', strtotime($row['tanggal_ajuan']));
+								$status = $row['status'];
 
 								echo "<tr>
 									<td>{$no}</td>
@@ -71,13 +72,13 @@
 									<td>{$tgl_ajuan}</td>
 									<td>";
 
-								if ($row['status'] == 'Menunggu Verifikasi') {
+								if ($status == 'Menunggu Verifikasi') {
 									echo "<span class='badge badge-warning'>Menunggu</span>";
-								} elseif ($row['status'] == 'Disetujui') {
+								} elseif ($status == 'Disetujui') {
 									echo "<span class='badge badge-success'>Disetujui</span>";
-								} elseif ($row['status'] == 'Ditolak') {
+								} elseif ($status == 'Ditolak') {
 									echo "<span class='badge badge-danger'>Ditolak</span>";
-								} elseif ($row['status'] == 'Selesai') {
+								} elseif ($status == 'Selesai') {
 									echo "<span class='badge badge-primary'>Selesai</span>";
 								} else {
 									echo "<span class='badge badge-secondary'>Tidak Diketahui</span>";
@@ -86,8 +87,7 @@
 								echo "</td>
 									<td>";
 								if (!empty($row['file_draft'])) {
-									echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' 
-											target='_blank' class='btn btn-sm btn-info'>
+									echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' target='_blank' class='btn btn-sm btn-info'>
 											<i class='fas fa-file-word'></i> Download
 										  </a>";
 								} else {
@@ -103,7 +103,7 @@
 									  </a> ";
 
 								// Tombol Edit & Hapus hanya jika status masih menunggu
-								if ($row['status'] == 'Menunggu Verifikasi') {
+								if ($status == 'Menunggu Verifikasi') {
 									echo "<a href='main_pokja.php?unit=update_pengajuan&id_pengajuan={$row['id_pengajuan']}' 
 											class='btn btn-sm btn-success'>
 											<i class='fas fa-edit'></i>
@@ -112,7 +112,34 @@
 											onclick=\"return confirm('Yakin ingin menghapus data ini?')\" 
 											class='btn btn-sm btn-danger'>
 											<i class='fas fa-trash'></i>
-										  </a>";
+										  </a> ";
+
+									// 🟩 Tombol Kirim Email
+									echo "<button class='btn btn-sm btn-warning' data-toggle='modal' data-target='#emailModal{$row['id_pengajuan']}'>
+											<i class='fas fa-envelope'></i>
+										  </button>";
+
+									// 🟩 Modal Konfirmasi Kirim Email
+									echo "
+									<div class='modal fade' id='emailModal{$row['id_pengajuan']}' tabindex='-1' role='dialog'>
+									  <div class='modal-dialog modal-dialog-centered' role='document'>
+										<div class='modal-content'>
+										  <div class='modal-header bg-warning'>
+											<h5 class='modal-title'><i class='fas fa-envelope'></i> Konfirmasi Kirim Email</h5>
+											<button type='button' class='close' data-dismiss='modal'>&times;</button>
+										  </div>
+										  <div class='modal-body'>
+											<p>Apakah Anda ingin mengirim email notifikasi untuk dokumen <strong>{$row['judul_dokumen']}</strong>?</p>
+										  </div>
+										  <div class='modal-footer'>
+											<a href='main_pokja.php?unit=kirim_email&id_pengajuan={$row['id_pengajuan']}' class='btn btn-primary'>
+												<i class='fas fa-paper-plane'></i> Kirim Email
+											</a>
+											<button type='button' class='btn btn-secondary' data-dismiss='modal'>Tutup</button>
+										  </div>
+										</div>
+									  </div>
+									</div>";
 								}
 
 								echo "</td>

@@ -39,6 +39,7 @@
 									<tr>
 										<th style="text-align: center; color: white;">No</th>
 										<th style="text-align: center; color: white;">Nama Lengkap</th>
+										<th style="text-align: center; color: white;">Email Pengguna</th>
 										<th style="text-align: center; color: white;">Username</th>
 										<th style="text-align: center; color: white;">Action</th>
 									</tr>
@@ -54,6 +55,7 @@
 								  <tr>
 									<td align="center"><?php echo $nn ?></td>
 									<td><?= $data['nama_lengkap'] ?></td>
+									<td><?= $data['email_user'] ?></td>
 									<td><?= $data['username'] ?></td>
 									<td align="center">
 										<input type="hidden" id="code">

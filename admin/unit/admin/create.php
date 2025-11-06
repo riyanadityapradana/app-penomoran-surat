@@ -7,6 +7,7 @@
 		$nama_lengkap = mysqli_real_escape_string($config, $_POST['nama_lengkap']);
 		$username     = mysqli_real_escape_string($config, $_POST['username']);
 		$password     = mysqli_real_escape_string($config, $_POST['password']);
+		$email_user   = mysqli_real_escape_string($config, $_POST['email_user']);
 		$level        = "Admin";
 		
 		// Hash password sebelum disimpan
@@ -20,8 +21,8 @@
 		}
 
 		// Simpan ke database
-		$query = "INSERT INTO tb_user (nama_lengkap, username, password, level, kode_pokja)
-				  VALUES ('$nama_lengkap', '$username', '$hashed_password', '$level', '$kode_pokja')";
+		$query = "INSERT INTO tb_user (nama_lengkap, username, password, level, kode_pokja,email_user)
+				  VALUES ('$nama_lengkap', '$username', '$hashed_password', '$level', '$kode_pokja', '$email_user')";
 
 		if (mysqli_query($config, $query)) {
 			header('Location: main_admin.php?unit=admin&msg=User baru berhasil ditambahkan!');
@@ -50,6 +51,10 @@
 								<div class="form-group">
 									<label>Nama lengkap</label>
 									<input type="text" name="nama_lengkap" class="form-control" required>
+								</div>
+								<div class="form-group">
+									<label>Email User</label>
+									<input type="email" name="email_user" class="form-control" required>
 								</div>
 								<div class="form-group">
 									<label>Username</label>

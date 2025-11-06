@@ -29,7 +29,7 @@
 			</div>
 
 			<div class="card-body">
-				<table id="example1" class="table table-bordered table-striped text-center">
+				<table id="example2" class="table table-bordered table-striped text-center">
 					<thead style="background:rgb(0, 102, 51, 1); color: white;">
 						<tr>
 							<th>No</th>

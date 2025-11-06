@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: 127.0.0.1
--- Generation Time: 03 Nov 2025 pada 06.18
+-- Generation Time: 06 Nov 2025 pada 06.35
 -- Versi Server: 10.1.13-MariaDB
 -- PHP Version: 5.5.37
 
@@ -73,7 +73,8 @@ INSERT INTO `tb_pengajuan_dokumen` (`id_pengajuan`, `id_user`, `id_jenis`, `judu
 (5, 9, 2, 'Peraturan Jam Istirahat Pegawai', 'dokumen_final_1762056876.pdf', 'Draft Sudah Final', 'Selesai', '2025-10-30', '2025-11-02 00:00:00', '2025-11-02 00:00:00', 'A/001/SK/PMPK/XI/2025', NULL, 'Asik'),
 (6, 9, 3, 'SK Pegawai Baru', 'dokumen_final_1762128554.pdf', 'Masih Awal', 'Selesai', '2025-11-04', '2025-11-02 00:00:00', '2025-11-02 00:00:00', 'A/002/SK/PMPK/XI/2025', NULL, 'ckckckck'),
 (7, 8, 3, 'SK Hari Libur Hari Raya', 'dokumen_final_1762128659.pdf', '-', 'Selesai', '2025-11-01', '2025-11-03 00:00:00', '2025-11-03 00:00:00', 'A/001/SK/TKRS/XI/2025', NULL, '-'),
-(8, 9, 1, 'coba coba 2', 'draft_1762131894.docx', '', 'Ditolak', '2025-11-02', '2025-11-03 00:00:00', '2025-11-03 00:00:00', NULL, NULL, 'Kalimat nya Tidak Rapi');
+(8, 9, 1, 'coba coba 2', 'draft_1762131894.docx', '', 'Ditolak', '2025-11-02', '2025-11-03 00:00:00', '2025-11-03 00:00:00', NULL, NULL, 'Kalimat nya Tidak Rapi'),
+(10, 9, 1, 'coba coba 3', 'draft_1762401743.docx', 'Apa aja boleh', 'Menunggu Verifikasi', '2025-11-06', '2025-11-06 00:00:00', NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -87,18 +88,19 @@ CREATE TABLE `tb_user` (
   `password` varchar(255) NOT NULL,
   `nama_lengkap` varchar(100) NOT NULL,
   `level` enum('Admin','Pokja') NOT NULL DEFAULT 'Pokja',
-  `kode_pokja` varchar(10) NOT NULL
+  `kode_pokja` varchar(10) NOT NULL,
+  `email_user` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 --
 -- Dumping data untuk tabel `tb_user`
 --
 
-INSERT INTO `tb_user` (`id_user`, `username`, `password`, `nama_lengkap`, `level`, `kode_pokja`) VALUES
-(8, 'admin_tkrs', '$2y$10$gXbXxOhcxjTYlPOBAoL35uIAlEtBOR2pKMVpc3hNOv0w28AeyZq/e', 'Tenaga Kerja Rumah Sakit', 'Pokja', 'TKRS'),
-(9, 'admin_pmpk', '$2y$10$HM3BWXrU8FjHIrZ5IPSEeup9Klf51my8mYCc5UUeWVEasy4k6u4M6', 'Penilaian Medis Pegawai Kesehatan', 'Pokja', 'PMPK'),
-(12, 'admin', '$2y$10$DBxLBPEMoVABgEOd6BWZQ.SjhiiI7c1tsBTuqKCOPztF/BY9mBbGC', 'Catherina Vallencia', 'Admin', 'Admin'),
-(13, '12345', '$2y$10$Oh81ZbDTKz8//ErnAAQtV.AGM8/xitIqfkxdqvUPgUliF1gGenkfe', 'Oline Manuel', 'Admin', 'Admin');
+INSERT INTO `tb_user` (`id_user`, `username`, `password`, `nama_lengkap`, `level`, `kode_pokja`, `email_user`) VALUES
+(8, 'admin_tkrs', '$2y$10$gXbXxOhcxjTYlPOBAoL35uIAlEtBOR2pKMVpc3hNOv0w28AeyZq/e', 'Tenaga Kerja Rumah Sakit', 'Pokja', 'TKRS', NULL),
+(9, 'admin_pmpk', '$2y$10$HM3BWXrU8FjHIrZ5IPSEeup9Klf51my8mYCc5UUeWVEasy4k6u4M6', 'Penilaian Medis Pegawai Kesehatan', 'Pokja', 'PMPK', NULL),
+(12, 'admin', '$2y$10$DBxLBPEMoVABgEOd6BWZQ.SjhiiI7c1tsBTuqKCOPztF/BY9mBbGC', 'Catherina Vallencia', 'Admin', 'Admin', 'fatmad482@gmail.com'),
+(13, '12345', '$2y$10$Oh81ZbDTKz8//ErnAAQtV.AGM8/xitIqfkxdqvUPgUliF1gGenkfe', 'Oline Manuel', 'Admin', 'Admin', 'fatmadsbs@gmail.com');
 
 --
 -- Indexes for dumped tables
@@ -138,12 +140,12 @@ ALTER TABLE `tb_jenis_dokumen`
 -- AUTO_INCREMENT for table `tb_pengajuan_dokumen`
 --
 ALTER TABLE `tb_pengajuan_dokumen`
-  MODIFY `id_pengajuan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id_pengajuan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 --
 -- AUTO_INCREMENT for table `tb_user`
 --
 ALTER TABLE `tb_user`
-  MODIFY `id_user` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id_user` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
 --
