@@ -32,6 +32,9 @@
 				</div>
 			</div>
 			<div class="card-body">
+				<div class="alert alert-info">
+					<i class="fas fa-info-circle"></i> <strong>Catatan:</strong> Jika selama status pengajuan masih <b>'Menunggu'</b>, maka data dapat diubah.
+				</div>
 				<table id="example2" class="table table-bordered table-striped text-center">
 					<thead style="background:rgb(0, 0, 0, 1); color: white;">
 						<tr>
@@ -116,7 +119,7 @@
 
 									// 🟩 Tombol Kirim Email
 									echo "<button class='btn btn-sm btn-warning' data-toggle='modal' data-target='#emailModal{$row['id_pengajuan']}'>
-											<i class='fas fa-envelope'></i>
+											<i class='fa fa-paper-plane'></i>
 										  </button>";
 
 									// 🟩 Modal Konfirmasi Kirim Email

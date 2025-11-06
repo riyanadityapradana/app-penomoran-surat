@@ -121,7 +121,7 @@ $query = mysqli_query($config, "
                                         <td>{$row['nama_jenis']}</td>
                                         <td class='text-center'>";
                                         if (!empty($row['nomor_surat'])) {
-                                            echo "<span class='badge badge-primary' style='color: white; font-weight: bold;'>" . htmlspecialchars($row['nomor_surat']) . "</span>";
+                                            echo "<span class='badge badge-defauld' style='color: black; font-weight: bold;'>" . htmlspecialchars($row['nomor_surat']) . "</span>";
                                         } else {
                                             echo "<span class='badge badge-danger' style='color: white; font-weight: bold;'>-</span>";
                                         }

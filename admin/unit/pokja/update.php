@@ -37,11 +37,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     if (mysqli_query($config, $query)) {
-        header('Location: main_admin.php?unit=admin&msg=Data user berhasil diperbarui!');
+        header('Location: main_admin.php?unit=pokja&msg=Data user berhasil diperbarui!');
         exit;
     } else {
         $errMsg = urlencode('Gagal menyimpan data: ' . mysqli_error($config));
-			header('Location: main_admin.php?unit=admin&err=' . $errMsg);
+			header('Location: main_admin.php?unit=pokja&err=' . $errMsg);
 			exit;
     }
 }

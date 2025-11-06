@@ -13,12 +13,14 @@ $pokja = mysqli_num_rows($q_pokja);
 
 // Ambil data jumlah pengajuan per Pokja
 $q_rekap = mysqli_query($config, "
-    SELECT 
-        u.kode_pokja, 
+    SELECT
+        u.kode_pokja,
         u.nama_lengkap,
-        COUNT(p.id_pengajuan) AS total_pengajuan
+        COUNT(p.id_pengajuan) AS total_pengajuan,
+        GROUP_CONCAT(DISTINCT j.nama_jenis SEPARATOR ', ') AS jenis_dokumen
     FROM tb_user u
     LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user
+    LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
     WHERE u.level = 'Pokja'
     GROUP BY u.id_user
     ORDER BY total_pengajuan DESC
@@ -107,6 +109,7 @@ $q_rekap = mysqli_query($config, "
                                     <th width="50">No</th>
                                     <th>Kode Pokja</th>
                                     <th>Nama Pokja</th>
+                                    <th>Jenis Dokumen</th>
                                     <th>Total Pengajuan Dokumen</th>
                                 </tr>
                             </thead>
@@ -120,6 +123,7 @@ $q_rekap = mysqli_query($config, "
                                     <td class="text-center"><?= $no++; ?></td>
                                     <td class="text-center"><?= htmlspecialchars($r['kode_pokja']); ?></td>
                                     <td><?= htmlspecialchars($r['nama_lengkap']); ?></td>
+                                    <td class="text-center"><?= htmlspecialchars($r['jenis_dokumen'] ?? '-'); ?></td>
                                     <td class="text-center">
                                         <span class="badge badge-primary"><?= $r['total_pengajuan']; ?></span>
                                     </td>
@@ -129,7 +133,7 @@ $q_rekap = mysqli_query($config, "
                                 else:
                                 ?>
                                 <tr>
-                                    <td colspan="4" class="text-center"><em>Belum ada data pengajuan</em></td>
+                                    <td colspan="5" class="text-center"><em>Belum ada data pengajuan</em></td>
                                 </tr>
                                 <?php endif; ?>
                             </tbody>

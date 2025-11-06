@@ -24,7 +24,7 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>ITUTL-RSPI 2 | Dashboard 2</title>
-		<link rel="icon" href="../assets/img/icon.png">
+		<link rel="icon" href="../assets/img/QQ.jpg" type="image/png">
 		<!-- Google Font: Source Sans Pro -->
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
 		<!-- Ionicons -->
@@ -88,10 +88,16 @@
 						<a class="nav-link" data-toggle="dropdown" href="#">
 							<i class="far fa-user"></i><span class="badge badge-warning navbar-badge"></span>
 						</a>
-						<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+						<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right shadow-sm">
+							<!-- Kelola User -->
+							<a href="main_pokja.php?unit=user" class="dropdown-item text-primary">
+								<i class="fas fa-user-cog mr-2"></i> Kelola Data User
+							</a>
+
 							<div class="dropdown-divider"></div>
-							<div class="dropdown-divider"></div>
-							<a href="" class="dropdown-item" data-toggle="modal" data-target="#modallogout">
+
+							<!-- Logout -->
+							<a href="" class="dropdown-item text-danger" data-toggle="modal" data-target="#modallogout">
 								<i class="fas fa-sign-out-alt mr-2"></i> Logout
 							</a>
 						</div>

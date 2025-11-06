@@ -29,6 +29,14 @@ else if ($_GET['unit'] == "detail_pengesahan"){
   require_once("unit/pengesahan/detail.php");
 }
 
+//admin
+else if ($_GET['unit'] == "user"){
+  require_once("unit/user/user.php");
+}
+else if ($_GET['unit'] == "update_user"){
+  require_once("unit/user/update.php");
+}
+
 //Laporan
 else if ($_GET['unit'] == "rekap"){
   require_once("unit/rekap/rekap.php");
