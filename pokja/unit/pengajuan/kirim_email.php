@@ -50,8 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['kirim_email'])) {
         <br>
         <p>Silakan klik tombol di bawah ini untuk melihat detail pengajuan:</p>
         <p>
-            // <a href='https://192.168.1.66/main_admin.php?unit=detail_pengajuan&id_pengajuan={$data['id_pengajuan']}'
-            <a href='http://192.168.1.66/akreditas/'
+            <a href='http://192.168.1.108/akreditas/'
                style='background:#007bff;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;'>
                🔍 Lihat Detail Pengajuan
             </a>
@@ -91,72 +90,3 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['kirim_email'])) {
     }
 }
 ?>
-
-<section class="content-header">
-    <h1>Kirim Email Notifikasi Pengajuan</h1>
-</section>
-
-<section class="content">
-    <div class="container-fluid">
-        <div class="card card-default">
-            <div class="card-header bg-info">
-                <h3 class="card-title">Detail Pengajuan</h3>
-            </div>
-            
-            <form method="post">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-sm-12">
-
-                            <div class="form-group">
-                                <label>Judul Dokumen</label>
-                                <input type="text" class="form-control" value="<?= htmlspecialchars($data['judul_dokumen']); ?>" readonly>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Jenis Dokumen</label>
-                                <input type="text" class="form-control" value="<?= htmlspecialchars($data['nama_jenis']); ?>" readonly>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Kode Pokja</label>
-                                <input type="text" class="form-control" value="<?= htmlspecialchars($data['kode_pokja']); ?>" readonly>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Tanggal Pengajuan</label>
-                                <input type="text" class="form-control" value="<?= date('d-m-Y', strtotime($data['tanggal_ajuan'])); ?>" readonly>
-                            </div>
-
-                            <hr>
-                            <h5><b>Form Kirim Email</b></h5>
-
-                            <div class="form-group">
-                                <label>Pilih Admin Tujuan</label>
-                                <select name="email_admin" class="form-control" required>
-                                    <option value="">-- Pilih Admin --</option>
-                                    <?php
-                                    $admins = mysqli_query($config, "SELECT email_user, nama_lengkap FROM tb_user WHERE level='Admin'");
-                                    while ($row = mysqli_fetch_assoc($admins)) {
-                                        echo "<option value='{$row['email_user']}'>{$row['nama_lengkap']} ({$row['email_user']})</option>";
-                                    }
-                                    ?>
-                                </select>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-footer">
-                    <a class="btn btn-app bg-warning float-left" href="main_pokja.php?unit=pengajuan">
-                        <i class="fas fa-reply"></i> Kembali
-                    </a>
-                    <button type="submit" name="kirim_email" class="btn btn-app bg-success float-right">
-                        <i class="fas fa-paper-plane"></i> Kirim Email Otomatis
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</section>

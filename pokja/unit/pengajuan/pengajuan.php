@@ -135,10 +135,13 @@
 											<p>Apakah Anda ingin mengirim email notifikasi untuk dokumen <strong>{$row['judul_dokumen']}</strong>?</p>
 										  </div>
 										  <div class='modal-footer'>
-											<a href='main_pokja.php?unit=kirim_email&id_pengajuan={$row['id_pengajuan']}' class='btn btn-primary'>
-												<i class='fas fa-paper-plane'></i> Kirim Email
-											</a>
-											<button type='button' class='btn btn-secondary' data-dismiss='modal'>Tutup</button>
+										 <form method='post' action='main_pokja.php?unit=kirim_email&id_pengajuan={$row['id_pengajuan']}' style='display:inline;'>
+										  <input type='hidden' name='email_admin' value='sekretariatrspelitainsani@gmail.com'>
+										  <button type='submit' name='kirim_email' class='btn btn-primary'>
+										  	<i class='fas fa-paper-plane'></i> Kirim Email
+										  </button>
+										 </form>
+										 <button type='button' class='btn btn-secondary' data-dismiss='modal'>Tutup</button>
 										  </div>
 										</div>
 									  </div>
