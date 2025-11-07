@@ -103,8 +103,8 @@ $q_rekap = mysqli_query($config, "
                         <h3 class="card-title text-white"><i class="fas fa-chart-bar"></i> Statistik Pengajuan Dokumen per Pokja</h3>
                     </div>
                     <div class="card-body p-0">
-                        <table class="table table-striped table-bordered mb-0">
-                            <thead class="text-center bg-light">
+                        <table id="example2" class="table table-bordered table-striped">
+                            <thead style="background:rgb(23, 162, 184, 1)">
                                 <tr>
                                     <th width="50">No</th>
                                     <th>Kode Pokja</th>
@@ -141,7 +141,7 @@ $q_rekap = mysqli_query($config, "
                     </div>
                 </div>
                 <!-- /.card statistik per pokja -->
-
+<br><br>
             </div>
         </div>
     </div>
