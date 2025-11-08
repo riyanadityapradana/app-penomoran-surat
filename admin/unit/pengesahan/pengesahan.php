@@ -70,8 +70,8 @@
 							<th>Tgl Dokumen</th>
 							<th>Pokja</th>
 							<th>Status</th>
-							<th>File PDF Final</th>
-							<th>Aksi</th>
+							<!-- <th>File PDF Final</th> -->
+							<th width="60">Aksi</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -104,20 +104,12 @@
 									<td>{$tgl_dok}</td>
 									<td>{$row['kode_pokja']}</td>
 									<td><span class='badge badge-primary'>Selesai</span></td>
-									<td>";
-
-								if (!empty($row['file_draft'])) {
-									echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' target='_blank' class='btn btn-sm btn-success'>
-											<i class='fas fa-file-pdf'></i> Download
-										  </a>";
-								} else {
-									echo "-";
-								}
-
-								echo "</td>
 									<td>
 										<a href='main_admin.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}' class='btn btn-sm btn-info'>
 											<i class='fas fa-eye'></i>
+										</a>
+										<a href='main_admin.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}&edit=1' class='btn btn-sm btn-warning'>
+											<i class='fas fa-edit'></i>
 										</a>
 									</td>
 								</tr>";

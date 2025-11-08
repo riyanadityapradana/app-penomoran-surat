@@ -31,10 +31,10 @@
 		exit;
 	}
 
-	// --- CEGAH EDIT JIKA STATUS BUKAN MENUNGGU --- //
-	if ($data['status'] != 'Menunggu Verifikasi') {
+	// --- CEGAH EDIT JIKA STATUS BUKAN MENUNGGU VERIFIKASI ATAU DISETUJUI --- //
+	if ($data['status'] != 'Menunggu Verifikasi' && $data['status'] != 'Disetujui') {
 		echo "<script>
-				alert('Data tidak dapat diedit karena sudah diverifikasi!');
+				alert('Data tidak dapat diedit karena status sudah selesai atau ditolak!');
 				window.location = 'main_pokja.php?unit=pengajuan';
 			  </script>";
 		exit;
@@ -61,9 +61,14 @@
 			$allowed = ['doc', 'docx'];
 			if (!in_array($ext, $allowed)) {
 				echo "<script>alert('Hanya file Word (.doc/.docx) yang diperbolehkan!');</script>";
-			} elseif ($ukuran > 2097152) { // 2MB
-				echo "<script>alert('Ukuran file maksimal 2MB!');</script>";
+			} elseif ($ukuran > 10485760) { // 10MB
+				echo "<script>alert('Ukuran file maksimal 10MB!');</script>";
 			} else {
+				// Hapus file lama jika ada
+				if (!empty($data['file_draft']) && file_exists("../assets/upload/draft_word/" . $data['file_draft'])) {
+					unlink("../assets/upload/draft_word/" . $data['file_draft']);
+				}
+
 				$newName = "draft_" . time() . "." . $ext;
 				$tujuan = "../assets/upload/draft_word/" . $newName;
 
@@ -140,7 +145,7 @@
 								</div>
 
 								<div class="form-group">
-									<label>File Draft (Word) <small>(Kosongkan jika tidak ingin diubah, maks 2MB)</small></label><br>
+									<label>File Draft (Word) <small>(Kosongkan jika tidak ingin diubah, maks 10MB)</small></label><br>
 									<?php if (!empty($data['file_draft'])): ?>
 										<a href="../assets/upload/draft_word/<?php echo $data['file_draft']; ?>" 
 										   target="_blank" class="btn btn-sm btn-info mb-2">

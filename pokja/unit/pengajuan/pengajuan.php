@@ -33,7 +33,7 @@
 			</div>
 			<div class="card-body">
 				<div class="alert alert-info">
-					<i class="fas fa-info-circle"></i> <strong>Catatan:</strong> Jika selama status pengajuan masih <b>'Menunggu'</b>, maka data dapat diubah.
+					<i class="fas fa-info-circle"></i> <strong>Catatan:</strong> Jika status pengajuan masih <b>'Menunggu Verifikasi' atau 'Disetujui'</b>, maka data dapat diubah.
 				</div>
 				<table id="example2" class="table table-bordered table-striped text-center">
 					<thead style="background:rgb(0, 0, 0, 1); color: white;">
@@ -105,8 +105,8 @@
 										<i class='fas fa-eye'></i>
 									  </a> ";
 
-								// Tombol Edit & Hapus hanya jika status masih menunggu
-								if ($status == 'Menunggu Verifikasi') {
+								// Tombol Edit & Hapus hanya jika status 'Menunggu Verifikasi' atau 'Disetujui'
+								if ($status == 'Menunggu Verifikasi' || $status == 'Disetujui') {
 									echo "<a href='main_pokja.php?unit=update_pengajuan&id_pengajuan={$row['id_pengajuan']}' 
 											class='btn btn-sm btn-success'>
 											<i class='fas fa-edit'></i>

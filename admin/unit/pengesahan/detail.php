@@ -21,7 +21,40 @@ if (isset($_GET['id_pengajuan'])) {
     }
 } else {
     header('Location: main_admin.php?unit=pengesahan&err=ID pengesahan tidak ditemukan!');
-        exit;
+    exit;
+}
+
+// --- PROSES EDIT UPLOAD PDF (TANPA EMAIL) --- //
+if (isset($_POST['edit_upload_pdf'])) {
+    $file_tmp = $_FILES['file_pdf']['tmp_name'];
+    $file_name = $_FILES['file_pdf']['name'];
+    $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+    if ($file_ext != 'pdf') {
+        echo "<script>alert('Hanya file PDF yang diperbolehkan!');</script>";
+    } else {
+        $new_name = 'dokumen_final_' . time() . '.pdf';
+        $upload_path = '../assets/upload/draft_word/' . $new_name;
+
+        // Hapus file lama jika ada
+        if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
+            unlink('../assets/upload/draft_word/' . $data['file_draft']);
+        }
+
+        if (move_uploaded_file($file_tmp, $upload_path)) {
+            // Update database
+            mysqli_query($config, "
+                UPDATE tb_pengajuan_dokumen
+                SET file_draft='$new_name'
+                WHERE id_pengajuan='$id_pengajuan'
+            ");
+
+            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=File PDF berhasil diupdate!');
+            exit;
+        } else {
+            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Gagal mengupload file!');
+        }
+    }
 }
 ?>
 
@@ -32,8 +65,23 @@ if (isset($_GET['id_pengajuan'])) {
 <section class="content">
     <div class="container-fluid">
         <div class="card card-default">
-            <div class="card-header">
+            <div class="card-header d-flex align-items-center" style="position:relative;">
                 <h3 class="card-title">Informasi Pengesahan Dokumen</h3>
+                <div class="ml-auto" style="position:absolute; right:24px; top:9px;">
+                    <?php if (isset($_GET['edit'])): ?>
+                        <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2">
+                            <input type="file" name="file_pdf" accept="application/pdf" required>
+                            <button type="submit" name="edit_upload_pdf" class="btn btn-sm btn-warning">
+                                <i class="fas fa-upload"></i> Update PDF
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                    <?php if (!empty($data['file_draft'])): ?>
+                        <a href="../assets/upload/draft_word/<?= $data['file_draft']; ?>" class="btn btn-sm btn-success ml-2" download>
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <div class="card-body">
@@ -86,7 +134,7 @@ if (isset($_GET['id_pengajuan'])) {
 
                         // URL absolut untuk viewer PDF
                         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/app_no-surat/assets/upload/draft_word//' . urlencode($data['file_draft']);
+                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/app-penomoran-surat/assets/upload/draft_word//' . urlencode($data['file_draft']);
                     ?>
 
                     <!-- Tombol Download -->
