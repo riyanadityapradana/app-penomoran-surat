@@ -18,14 +18,14 @@ if (isset($_GET['id_pengajuan'])) {
     if (!$data) {
         echo "<script>
                 alert('Data pengesahan tidak ditemukan atau belum berstatus Selesai!');
-                window.location = 'main_staff.php?unit=dokumen_sah';
+                window.location = 'main_pokja.php?unit=detail_pengesahan';
               </script>";
         exit;
     }
 } else {
     echo "<script>
             alert('ID pengesahan tidak ditemukan!');
-            window.location = 'main_staff.php?unit=dokumen_sah';
+            window.location = 'main_pokja.php?unit=pengesahan';
           </script>";
     exit;
 }
@@ -92,7 +92,7 @@ if (isset($_GET['id_pengajuan'])) {
 
                         // URL absolut untuk viewer PDF
                         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/akreditas/assets/upload/draft_word//' . urlencode($data['file_draft']);
+                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/app_no-surat/assets/upload/draft_word//' . urlencode($data['file_draft']);
                     ?>
 
                     <!-- Tombol Download -->
@@ -127,7 +127,7 @@ if (isset($_GET['id_pengajuan'])) {
             </div>
 
             <div class="card-footer">
-                <a class="btn btn-app bg-warning" href="main_staff.php?unit=dokumen_sah">
+                <a class="btn btn-app bg-warning" href="main_pokja.php?unit=pengesahan">
                     <i class="fas fa-reply"></i> Kembali
                 </a>
             </div>
