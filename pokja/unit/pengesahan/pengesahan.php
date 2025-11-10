@@ -33,12 +33,12 @@
 					<thead style="background:rgb(0, 102, 51, 1); color: white;">
 						<tr>
 							<th>No</th>
-							<th>Jenis Dokumen</th>
-							<th>Judul Dokumen</th>
-							<th>Tgl Dokumen</th>
-							<th>Tgl Ajuan</th>
-							<th>Status</th>
-							<th>File PDF Final</th>
+							<th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
+							<th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
+							<th style="font-size: 14px;" width="120" responsive>Tgl Dokumen</th>
+							<th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
+							<th style="font-size: 14px;" width="120" responsive>Status</th>
+							<th style="font-size: 14px;" width="120" responsive>File PDF Final</th>
 							<th>Aksi</th>
 						</tr>
 					</thead>

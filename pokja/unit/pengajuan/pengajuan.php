@@ -40,12 +40,12 @@
 						<tr>
 							<th>No</th>
 							<th>Dokumen</th>
-							<th>Judul Dokumen</th>
-							<th>Tgl Dokumen</th>
-							<th>Tgl Ajuan</th>
-							<th>Status</th>
-							<th>File Draft</th>
-							<th>Aksi</th>
+							<th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
+							<th style="font-size: 14px;" width="120" responsive>Tgl Dokumen</th>
+							<th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
+							<th style="font-size: 14px;" width="120" responsive>Status</th>
+							<th style="font-size: 14px;" width="120" responsive>File Draft</th>
+							<th style="font-size: 14px;" width="120" responsive>Aksi</th>
 						</tr>
 					</thead>
 					<tbody>

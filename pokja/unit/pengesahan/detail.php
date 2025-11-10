@@ -92,7 +92,7 @@ if (isset($_GET['id_pengajuan'])) {
 
                         // URL absolut untuk viewer PDF
                         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/app_no-surat/assets/upload/draft_word//' . urlencode($data['file_draft']);
+                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/app-penomoran-surat/assets/upload/draft_word//' . urlencode($data['file_draft']);
                     ?>
 
                     <!-- Tombol Download -->

@@ -80,11 +80,11 @@ $data = mysqli_query($config, $query);
                     <thead style="background:rgb(0, 0, 0, 1); color: white;">
                         <tr>
                             <th>No</th>
-                            <th>Tgl Ajuan</th>
-                            <th>No Dokumen</th>
-                            <th>Jenis Dokumen</th>
-                            <th>Judul Dokumen</th>
-                            <th>Tgl Sah/ Ditolak</th>
+                            <th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
+                            <th style="font-size: 14px;" width="120" responsive>No Dokumen</th>
+                            <th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
+                            <th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
+                            <th style="font-size: 14px;" width="120" responsive>Tgl Sah/ Ditolak</th>
                             <th>Status</th>
                         </tr>
                     </thead>

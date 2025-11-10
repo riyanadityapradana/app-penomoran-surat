@@ -132,4 +132,5 @@ function getBadgeClass($status) {
             </div>
         </div>
     </div>
+    <br><br>
 </section>
