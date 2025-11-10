@@ -94,7 +94,11 @@
 
 							<div class="form-group">
 								<label>Judul Dokumen</label>
-								<input type="text" name="judul_dokumen" class="form-control" required>
+								<div class="input-group">
+									<span class="input-group-text"><i class="fas fa-file-signature"></i></span>
+									<input type="text" name="judul_dokumen" class="form-control" placeholder="Contoh: Rencana Kerja Tahunan - Revisi 2025" required>
+								</div>
+								<small class="form-text text-muted">Masukkan judul dokument. Jika dokumen adalah revisi tambahkan dibelakang judul kata "Revisi. Contoh format: - Revisi.</small>
 							</div>
 
 							<div class="form-group">
@@ -103,13 +107,16 @@
 							</div>
 
 							<div class="form-group">
-								<label>File Draft (Word)</label>
+								<label>File Draft (Harus Format : Word)</label>
 								<input type="file" name="file_draft" accept=".doc,.docx" class="form-control" required>
 							</div>
 
 							<div class="form-group">
 								<label>Catatan</label>
-								<textarea name="catatan" class="form-control" rows="3"></textarea>
+								<div class="input-group">
+									<textarea name="catatan" class="form-control" rows="3" placeholder="Opsional: tulis ringkasan, tujuan, atau catatan penting untuk tim verifikasi dan tambahkan nomor telepon"></textarea>
+								</div>
+								<small class="form-text text-muted"><b>Wajib</b> — tambahkan No Telepon (contoh: WA=08123456789).</small>
 							</div>
 
 						</div>
