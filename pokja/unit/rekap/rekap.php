@@ -8,9 +8,14 @@ if (!isset($_SESSION['kode_pokja'])) {
 
 $kode_pokja_login = $_SESSION['kode_pokja'];
 
+// Query untuk jenis dokumen
+$query_jenis = "SELECT id_jenis, nama_jenis FROM tb_jenis_dokumen ORDER BY nama_jenis ASC";
+$jenis_data = mysqli_query($config, $query_jenis);
+
 // --- AMBIL FILTER ---
 $status_filter = isset($_GET['status']) ? $_GET['status'] : '';
 $tgl_filter = isset($_GET['tanggal_disetujui']) ? $_GET['tanggal_disetujui'] : '';
+$id_jenis_filter = isset($_GET['id_jenis']) ? $_GET['id_jenis'] : '';
 
 // --- QUERY DASAR ---
 $query = "SELECT p.*, j.nama_jenis, u.kode_pokja 
@@ -25,6 +30,9 @@ if (!empty($status_filter)) {
 }
 if (!empty($tgl_filter)) {
     $query .= " AND DATE(p.tanggal_disetujui) = '$tgl_filter'";
+}
+if (!empty($id_jenis_filter)) {
+    $query .= " AND p.id_jenis = '$id_jenis_filter'";
 }
 
 $query .= " ORDER BY p.id_pengajuan DESC";
@@ -49,12 +57,23 @@ $data = mysqli_query($config, $query);
                     <!-- Filter Status -->
                     <div class="form-group mr-3">
                         <label for="status" class="mr-2"><strong>Status:</strong></label>
-                        <select name="status" id="status" class="form-control" style="border:2px solid #004d26;">
+                        <select name="status" id="status" class="form-control select2" style="border:2px solid #004d26;">
                             <option value="">Semua</option>
                             <option value="Menunggu Verifikasi" <?= ($status_filter == 'Menunggu Verifikasi') ? 'selected' : '' ?>>Menunggu</option>
                             <option value="Disetujui" <?= ($status_filter == 'Disetujui') ? 'selected' : '' ?>>Disetujui</option>
                             <option value="Ditolak" <?= ($status_filter == 'Ditolak') ? 'selected' : '' ?>>Ditolak</option>
                             <option value="Selesai" <?= ($status_filter == 'Selesai') ? 'selected' : '' ?>>Selesai</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter Jenis Dokumen -->
+                    <div class="form-group mr-3">
+                        <label for="id_jenis" class="mr-2"><strong>Jenis Dokumen:</strong></label>
+                        <select name="id_jenis" id="id_jenis" class="form-control select2" style="border:2px solid #004d26;">
+                            <option value="">Semua</option>
+                            <?php while ($jenis = mysqli_fetch_assoc($jenis_data)) { ?>
+                                <option value="<?= $jenis['id_jenis'] ?>" <?= ($id_jenis_filter == $jenis['id_jenis']) ? 'selected' : '' ?>><?= htmlspecialchars($jenis['nama_jenis']) ?></option>
+                            <?php } ?>
                         </select>
                     </div>
 
@@ -70,7 +89,7 @@ $data = mysqli_query($config, $query);
                     </button>
 
                     <!-- Tombol Cetak -->
-                    <a href="unit/rekap/cetak_rekap.php?status=<?= $status_filter ?>&tanggal_disetujui=<?= $tgl_filter ?>&kode_pokja=<?= $kode_pokja_login ?>" 
+                    <a href="unit/rekap/cetak_rekap.php?status=<?= $status_filter ?>&tanggal_disetujui=<?= $tgl_filter ?>&id_jenis=<?= $id_jenis_filter ?>&kode_pokja=<?= $kode_pokja_login ?>"
                        target="_blank" class="btn btn-danger ml-2">
                         <i class="fas fa-print"></i> Cetak
                     </a>
@@ -120,4 +139,5 @@ $data = mysqli_query($config, $query);
             </div>
         </div>
     </div>
+    <br><br>
 </section>

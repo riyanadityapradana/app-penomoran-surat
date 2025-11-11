@@ -29,6 +29,30 @@
 			</div>
 
 			<div class="card-body">
+				<?php
+				// Query untuk jenis dokumen
+				$query_jenis = "SELECT id_jenis, nama_jenis FROM tb_jenis_dokumen ORDER BY nama_jenis ASC";
+				$jenis_data = mysqli_query($config, $query_jenis);
+
+				// Ambil filter jenis dokumen
+				$id_jenis_filter = isset($_GET['id_jenis']) ? $_GET['id_jenis'] : '';
+				?>
+				<form method="GET" class="form-inline mb-4">
+					<input type="hidden" name="unit" value="pengesahan">
+					<div class="form-group mr-4">
+						<label for="id_jenis" class="mr-4"><strong>Jenis Dokumen:</strong></label>
+						<select name="id_jenis" id="id_jenis" class="form-control select2">
+							<option value="">Semua</option>
+							<?php while ($jenis = mysqli_fetch_assoc($jenis_data)) { ?>
+								<option value="<?= $jenis['id_jenis'] ?>" <?= ($id_jenis_filter == $jenis['id_jenis']) ? 'selected' : '' ?>><?= htmlspecialchars($jenis['nama_jenis']) ?></option>
+							<?php } ?>
+						</select>
+					</div>
+					<button type="submit" class="btn btn-success">
+						<i class="fas fa-filter"></i> Filter
+					</button>
+				</form>
+
 				<table id="example2" class="table table-bordered table-striped text-center">
 					<thead style="background:rgb(0, 102, 51, 1); color: white;">
 						<tr>
@@ -48,13 +72,20 @@
 						$id_user = $_SESSION['id_user'];
 
 						// Ambil hanya dokumen yang sudah selesai
-						$query = mysqli_query($config, "
+						$query_str = "
 							SELECT p.*, j.nama_jenis
 							FROM tb_pengajuan_dokumen p
 							LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
-							WHERE p.id_user = '$id_user' AND p.status = 'Selesai'
-							ORDER BY p.id_pengajuan DESC
-						");
+							WHERE p.id_user = '$id_user' AND p.status = 'Selesai'";
+
+						// Tambahkan filter jenis dokumen jika dipilih
+						if (!empty($id_jenis_filter)) {
+							$query_str .= " AND p.id_jenis = '$id_jenis_filter'";
+						}
+
+						$query_str .= " ORDER BY p.id_pengajuan DESC";
+
+						$query = mysqli_query($config, $query_str);
 
 						if (mysqli_num_rows($query) > 0) {
 							while ($row = mysqli_fetch_assoc($query)) {
