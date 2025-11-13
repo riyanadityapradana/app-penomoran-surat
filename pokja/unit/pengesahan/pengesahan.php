@@ -57,9 +57,9 @@
 					<thead style="background:rgb(0, 102, 51, 1); color: white;">
 						<tr>
 							<th>No</th>
+							<th style="font-size: 14px;" width="120" responsive>Standard EP</th>
 							<th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
 							<th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
-							<th style="font-size: 14px;" width="120" responsive>Tgl Dokumen</th>
 							<th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
 							<th style="font-size: 14px;" width="120" responsive>Status</th>
 							<th style="font-size: 14px;" width="120" responsive>File PDF Final</th>
@@ -94,9 +94,9 @@
 
 								echo "<tr>
 									<td>{$no}</td>
+									<td>{$row['elemen_penilaian']}</td>
 									<td>{$row['nama_jenis']}</td>
 									<td>{$row['judul_dokumen']}</td>
-									<td>{$tgl_dok}</td>
 									<td>{$tgl_ajuan}</td>
 									<td><span class='badge badge-primary'>Selesai</span></td>
 									<td>";

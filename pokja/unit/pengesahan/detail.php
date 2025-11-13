@@ -53,6 +53,10 @@ if (isset($_GET['id_pengajuan'])) {
                         <td><?= htmlspecialchars($data['kode_pokja']); ?> (<?= htmlspecialchars($data['nama_lengkap']); ?>)</td>
                     </tr>
                     <tr>
+                        <th>Standard EP</th>
+                        <td><?= htmlspecialchars($data['elemen_penilaian']); ?></td>
+                    </tr>
+                    <tr>
                         <th>Jenis Dokumen</th>
                         <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
                     </tr>

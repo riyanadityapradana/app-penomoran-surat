@@ -98,6 +98,10 @@ function getBadgeClass($status) {
                         <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
                     </tr>
                     <tr>
+                        <th>Standard EP</th>
+                        <td><?= htmlspecialchars($data['elemen_penilaian']); ?></td>
+                    </tr>
+                    <tr>
                         <th>Judul Dokumen</th>
                         <td><?= htmlspecialchars($data['judul_dokumen']); ?></td>
                     </tr>

@@ -93,6 +93,7 @@ $pokja_list = mysqli_query($config, "SELECT DISTINCT kode_pokja FROM tb_user WHE
                         <tr>
                             <th>No</th>
                             <th>Tgl Ajuan</th>
+                            <th>Standard EP</th>
                             <th>No Dokumen</th>
                             <th>Jenis Dokumen</th>
                             <th>Judul Dokumen</th>
@@ -109,6 +110,7 @@ $pokja_list = mysqli_query($config, "SELECT DISTINCT kode_pokja FROM tb_user WHE
                                 echo "<tr>
                                         <td>{$no}</td>
                                         <td>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
+                                        <td>{$row['elemen_penilaian']}</td>
                                         <td>" . (!empty($row['nomor_surat']) ? $row['nomor_surat'] : '-') . "</td>
                                         <td>{$row['nama_jenis']}</td>
                                         <td>{$row['judul_dokumen']}</td>

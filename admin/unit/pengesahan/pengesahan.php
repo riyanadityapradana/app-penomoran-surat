@@ -15,6 +15,48 @@
 	</div>
 </section>
 
+<script>
+function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJenis, tanggalDokumen) {
+		  if (!noTel || noTel.trim() === '') {
+		      alert('Nomor telepon tidak tersedia untuk pengajuan ini.');
+		      return;
+		  }
+
+		  // Format nomor telepon (pastikan dimulai dengan 62)
+		  var noTelFormatted = noTel.trim();
+		  if (noTelFormatted.startsWith('08')) {
+		      noTelFormatted = '62' + noTelFormatted.substring(1);
+		  } else if (noTelFormatted.startsWith('+62')) {
+		      noTelFormatted = noTelFormatted.substring(1);
+		  } else if (!noTelFormatted.startsWith('62')) {
+		      noTelFormatted = '62' + noTelFormatted;
+		  }
+
+		  // Format tanggal pengajuan
+		  var tanggalPengajuan = new Date().toLocaleDateString('id-ID', {
+		      day: 'numeric',
+		      month: 'long',
+		      year: 'numeric'
+		  });
+
+		  // Pesan WA
+		  var pesan = encodeURIComponent(
+		      'Halo Pokja ' + kodePokja + ',\n\n' +
+		      'Berikut ringkasan pengajuannya:\n\n' +
+		      'No surat\t: ' + nomorSurat + '\n' +
+		      'Judul Dokumen\t: ' + judulDokumen + '\n' +
+		      'Jenis Dokumen\t: ' + namaJenis + '\n' +
+		      'Tanggal Pengajuan\t: ' + tanggalPengajuan + '\n\n' +
+		      'Dokumen tersebut telah "SELESAI" diproses. Silakan cek dokumen anda http://192.168.1.108/app_no-surat untuk informasi lebih lanjut.\n\n' +
+		      'Terima kasih.'
+		  );
+
+		  // Buka WhatsApp Web
+		  var url = 'https://wa.me/' + noTelFormatted + '?text=' + pesan;
+		  window.open(url, '_blank');
+}
+</script>
+
 <!-- Main content -->
 <section class="content">
 	<div class="container-fluid">
@@ -111,6 +153,9 @@
 										<a href='main_admin.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}&edit=1' class='btn btn-sm btn-warning'>
 											<i class='fas fa-edit'></i>
 										</a>
+										<button type='button' class='btn btn-sm btn-success' onclick='kirimWA({$row['id_pengajuan']}, \"{$row['no_tlp']}\", \"{$row['kode_pokja']}\", \"{$row['nomor_surat']}\", \"{$row['judul_dokumen']}\", \"{$row['nama_jenis']}\", \"{$row['tanggal_dokumen']}\")'>
+											<i class='fab fa-whatsapp'></i>
+										</button>
 									</td>
 								</tr>";
 								$no++;

@@ -100,6 +100,7 @@ $data = mysqli_query($config, $query);
                         <tr>
                             <th>No</th>
                             <th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
+                            <th style="font-size: 14px;" width="120" responsive>Standard EP</th>
                             <th style="font-size: 14px;" width="120" responsive>No Dokumen</th>
                             <th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
                             <th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
@@ -115,6 +116,7 @@ $data = mysqli_query($config, $query);
                                 echo "<tr>
                                         <td>{$no}</td>
                                         <td>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
+                                        <td>{$row['elemen_penilaian']}</td>
                                         <td>" . (!empty($row['nomor_surat']) ? $row['nomor_surat'] : '-') . "</td>
                                         <td>{$row['nama_jenis']}</td>
                                         <td>{$row['judul_dokumen']}</td>

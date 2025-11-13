@@ -95,6 +95,10 @@ if (isset($_POST['edit_upload_pdf'])) {
                         <td><?= htmlspecialchars($data['kode_pokja']); ?> (<?= htmlspecialchars($data['nama_lengkap']); ?>)</td>
                     </tr>
                     <tr>
+                        <th>Standard EP</th>
+                        <td><?= htmlspecialchars($data['elemen_penilaian']); ?></td>
+                    </tr>
+                    <tr>
                         <th>Jenis Dokumen</th>
                         <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
                     </tr>

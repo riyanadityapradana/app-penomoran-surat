@@ -7,6 +7,12 @@
 		exit;
 	}
 
+	// Ambil data user untuk auto-fill
+	$user_id = $_SESSION['id_user'];
+	$query_user = mysqli_query($config, "SELECT kode_pokja FROM tb_user WHERE id_user = '$user_id'");
+	$user_data = mysqli_fetch_assoc($query_user);
+	$kode_pokja = $user_data['kode_pokja'] ?? '';
+
 	// --- AMBIL DATA BERDASARKAN ID --- //
 	if (isset($_GET['id_pengajuan'])) {
 		$id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
@@ -46,6 +52,9 @@
 		$id_jenis        = mysqli_real_escape_string($config, $_POST['id_jenis']);
 		$judul_dokumen   = mysqli_real_escape_string($config, $_POST['judul_dokumen']);
 		$tanggal_dokumen = mysqli_real_escape_string($config, $_POST['tanggal_dokumen']);
+		$no_tel = mysqli_real_escape_string($config, $_POST['no_telepon']);
+		$elemen_penilaian_input = mysqli_real_escape_string($config, $_POST['elemen_penilaian']);
+		$elemen_penilaian = $kode_pokja . '-' . $elemen_penilaian_input; // gabungkan kode_pokja dengan input user
 		$file_draft_lama = mysqli_real_escape_string($config, $_POST['file_draft_lama']);
 
 		$file_draft = $file_draft_lama;
@@ -78,10 +87,12 @@
 			}
 		}
 
-		$query_update = "UPDATE tb_pengajuan_dokumen SET 
+		$query_update = "UPDATE tb_pengajuan_dokumen SET
 							id_jenis = '$id_jenis',
 							judul_dokumen = '$judul_dokumen',
 							tanggal_dokumen = '$tanggal_dokumen',
+							no_tlp = '$no_tel',
+							elemen_penilaian = '$elemen_penilaian',
 							file_draft = '$file_draft'
 						WHERE id_pengajuan = '$id_pengajuan'";
 
@@ -116,8 +127,29 @@
 
 					<div class="card-body">
 						<div class="row">
-							<div class="col-sm-12">
-
+							<div class="col-sm-6">
+								<div class="form-group">
+									<label>Standard EP</label>
+									<?php
+									// Ambil bagian setelah kode_pokja untuk form edit
+									$current_value = '';
+									if (!empty($data['elemen_penilaian'])) {
+										$parts = explode('-', $data['elemen_penilaian'], 2);
+										if (count($parts) > 1) {
+											$current_value = $parts[1];
+										}
+									}
+									?>
+									<div class="input-group">
+										<span class="input-group-text"><i class="fas fa-tags"></i></span>
+										<input type="text" class="form-control" value="<?php echo $kode_pokja; ?>" readonly style="background-color: #f8f9fa; font-weight: bold;">
+										<span class="input-group-text">-</span>
+										<input type="text" name="elemen_penilaian" class="form-control" placeholder="Contoh: 1 EP 3" value="<?php echo htmlspecialchars($current_value); ?>" required>
+									</div>
+									<small class="form-text text-muted"><b>Note:</b> pokja "<?php echo $kode_pokja; ?>" sudah otomatis.Jadi sisanya masukkan nomor dan EP berapa dan jika berhubungan dengan Standard EP lain, gunakan format (1 EP 3 dan 1 EP 4)</small>
+								</div>
+							</div>
+							<div class="col-sm-6">
 								<div class="form-group">
 									<label>Jenis Dokumen</label>
 									<select name="id_jenis" class="form-control" required>
@@ -131,7 +163,11 @@
 										?>
 									</select>
 								</div>
+							</div>
+						</div>
 
+						<div class="row">
+							<div class="col-sm-12">
 								<div class="form-group">
 									<label>Judul Dokumen</label>
 									<input type="text" name="judul_dokumen" class="form-control"
@@ -145,9 +181,18 @@
 								</div>
 
 								<div class="form-group">
+									<label>Nomor Telepon</label>
+									<div class="input-group">
+										<span class="input-group-text"><i class="fas fa-phone"></i></span>
+										<input type="text" name="no_telepon" class="form-control" placeholder="Contoh: 08123456789" value="<?php echo htmlspecialchars($data['no_tlp'] ?? ''); ?>" required>
+									</div>
+									<small class="form-text text-muted">Masukkan nomor telepon yang dapat dihubungi untuk konfirmasi.</small>
+								</div>
+
+								<div class="form-group">
 									<label>File Draft (Word) <small>(Kosongkan jika tidak ingin diubah, maks 10MB)</small></label><br>
 									<?php if (!empty($data['file_draft'])): ?>
-										<a href="../assets/upload/draft_word/<?php echo $data['file_draft']; ?>" 
+										<a href="../assets/upload/draft_word/<?php echo $data['file_draft']; ?>"
 										   target="_blank" class="btn btn-sm btn-info mb-2">
 										   <i class="fas fa-file-word"></i> Lihat File Lama
 										</a><br>
