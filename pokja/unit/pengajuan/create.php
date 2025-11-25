@@ -20,27 +20,64 @@
 		$elemen_penilaian = $kode_pokja . '-' . $elemen_penilaian_input; // gabungkan kode_pokja dengan input user
 		$status         = 'Menunggu Verifikasi'; // status awal
 
-		// Proses upload file draft (Word)
-		$allowed_ext = ['doc', 'docx'];
-		$file_name   = $_FILES['file_draft']['name'];
-		$file_tmp    = $_FILES['file_draft']['tmp_name'];
-		$file_ext    = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
-		$upload_dir  = '../assets/upload/draft_word/'; // pastikan folder ini sudah ada dan writable
-
-		// Cek format file
-		if (!in_array($file_ext, $allowed_ext)) {
+		// Proses upload file draft (Word) dengan error handling yang lebih baik
+		if (!isset($_FILES['file_draft']) || $_FILES['file_draft']['error'] !== UPLOAD_ERR_OK) {
 			echo "<script>
-					alert('Format file tidak valid! Hanya diperbolehkan .doc atau .docx');
+					alert('Error: Tidak ada file yang dipilih atau terjadi kesalahan upload!');
 					window.location = 'main_pokja.php?unit=create_pengajuan';
 				  </script>";
 			exit;
 		}
 
-		// Buat nama file unik
-		$new_filename = 'draft_' . time() . '.' . $file_ext;
+		$allowed_ext = ['doc', 'docx'];
+		$file_name   = $_FILES['file_draft']['name'];
+		$file_tmp    = $_FILES['file_draft']['tmp_name'];
+		$file_size   = $_FILES['file_draft']['size'];
+		$file_ext    = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+		$upload_dir  = '../assets/upload/draft_word/';
+
+		// Validasi ekstensi file
+		if (!in_array($file_ext, $allowed_ext)) {
+			echo "<script>
+					alert('Format file tidak valid! Hanya diperbolehkan .doc atau .docx. File yang diupload: $file_name');
+					window.location = 'main_pokja.php?unit=create_pengajuan';
+				  </script>";
+			exit;
+		}
+
+		// Validasi ukuran file (max 10MB)
+		$max_size = 10 * 1024 * 1024; // 10MB
+		if ($file_size > $max_size) {
+			echo "<script>
+					alert('Ukuran file terlalu besar! Maksimal 10MB. Ukuran file: ' + Math.round($file_size/1024/1024*100)/100 + 'MB');
+					window.location = 'main_pokja.php?unit=create_pengajuan';
+				  </script>";
+			exit;
+		}
+
+		// Cek apakah folder upload ada dan writable
+		if (!is_dir($upload_dir)) {
+			echo "<script>
+					alert('Error: Folder upload tidak ditemukan! Hubungi administrator.');
+					window.location = 'main_pokja.php?unit=create_pengajuan';
+				  </script>";
+			exit;
+		}
+
+		if (!is_writable($upload_dir)) {
+			echo "<script>
+					alert('Error: Folder upload tidak writable! Hubungi administrator.');
+					window.location = 'main_pokja.php?unit=create_pengajuan';
+				  </script>";
+			exit;
+		}
+
+		// Buat nama file unik dengan prefix timestamp dan user id
+		$new_filename = 'draft_' . time() . '_' . $id_user . '.' . $file_ext;
+		$full_path = $upload_dir . $new_filename;
 
 		// Pindahkan file ke folder tujuan
-		if (move_uploaded_file($file_tmp, $upload_dir . $new_filename)) {
+		if (move_uploaded_file($file_tmp, $full_path)) {
 			// Simpan ke database
 			$query = "INSERT INTO tb_pengajuan_dokumen
 					  (id_user, id_jenis, judul_dokumen, file_draft, tanggal_dokumen, tanggal_ajuan, catatan, no_tlp, elemen_penilaian, status)
@@ -49,18 +86,22 @@
 			
 			if (mysqli_query($config, $query)) {
 				echo "<script>
-						alert('Pengajuan dokumen berhasil disimpan!');
+						alert('Pengajuan dokumen berhasil disimpan! File tersimpan sebagai: $new_filename');
 						window.location = 'main_pokja.php?unit=pengajuan';
 					  </script>";
 			} else {
+				// Hapus file yang sudah terupload jika insert gagal
+				if (file_exists($full_path)) {
+					unlink($full_path);
+				}
 				echo "<script>
-						alert('Gagal menyimpan data: " . mysqli_error($config) . "');
+						alert('Gagal menyimpan data ke database: " . mysqli_error($config) . "');
 						window.location = 'main_pokja.php?unit=create_pengajuan';
 					  </script>";
 			}
 		} else {
 			echo "<script>
-					alert('Gagal mengupload file draft!');
+					alert('Gagal mengupload file draft! Kemungkinan penyebab:\\n- Folder tidak writable\\n- Space disk penuh\\n- File corromped\\n\\nDetail error: File tmp: $file_tmp, Target: $full_path');
 					window.location = 'main_pokja.php?unit=create_pengajuan';
 				  </script>";
 		}

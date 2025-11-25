@@ -22,7 +22,7 @@
       <img src="../assets/img/rs.jpeg" alt="Logo RS" style="max-width:280px; max-height:180px; margin-bottom:10px;">
     </div>
     <div class="card-header text-center">
-      <a href="#" class="h1"><b>AKREDITASI -</b> RSPI</a>
+      <a href="#" class="h1"><b>APDA -</b> RSPI</a>
     </div>
     <div class="card-body">
       <p class="login-box-msg">Sign in to start your session</p>
