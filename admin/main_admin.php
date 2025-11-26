@@ -113,7 +113,7 @@
 				<!-- Brand Logo -->
 				<a href="main_admin.php?unit=beranda" class="brand-link" style="background:rgb(0, 0, 0, 1)">
 					<img src="../assets/img/QQ.jpg" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
-					<span class="brand-text font-weight-light">AKRED - RSPI</span>
+					<span class="brand-text font-weight-light">APDA - RSPI</span>
 				</a>
 				<!-- Sidebar -->
 				<div class="sidebar">

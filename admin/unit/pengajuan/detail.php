@@ -136,6 +136,8 @@ function getBadgeClass($status) {
                                         <i class="fas fa-upload"></i> Upload PDF Final
                                     </button>
                                 </form>
+                                <br>
+                                <small class="form-text text-muted"><b>Note : Mohon konfirmasi ke pokja terlebih dahulu sebelum mengupload file PDF final.</b></small>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -154,6 +156,15 @@ function getBadgeClass($status) {
                     <tr>
                         <th>Catatan Admin</th>
                         <td><?= !empty($data['catatan_admin']) ? htmlspecialchars($data['catatan_admin']) : '<em>Belum ada catatan</em>'; ?></td>
+                    </tr>
+                    <tr>
+                        <th>No Telepon</th>
+                        <td>
+                            <?= !empty($data['no_tlp']) ? htmlspecialchars($data['no_tlp']) : '<em>Belum ada nomor telepon</em>'; ?>
+                            <button type='button' class='btn btn-sm btn-success' onclick='kirimWA(<?= $data['id_pengajuan']; ?>, "<?= $data['no_tlp']; ?>", "<?= $data['kode_pokja']; ?>", "<?= $data['nomor_surat']; ?>", "<?= $data['judul_dokumen']; ?>", "<?= $data['nama_jenis']; ?>", "<?= $data['tanggal_dokumen']; ?>")'>
+								<i class='fab fa-whatsapp'></i>	
+                            </button>
+                        </td>
                     </tr>
                     <?php else: ?>
                     <tr>
@@ -200,6 +211,50 @@ function getBadgeClass($status) {
                     <i class="fas fa-reply"></i> Kembali
                 </a>
             </div>
+            <br>
         </div>
+
+
+    <script>
+function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJenis, tanggalDokumen) {
+		  if (!noTel || noTel.trim() === '') {
+		      alert('Nomor telepon tidak tersedia untuk pengajuan ini.');
+		      return;
+		  }
+
+		  // Format nomor telepon (pastikan dimulai dengan 62)
+		  var noTelFormatted = noTel.trim();
+		  if (noTelFormatted.startsWith('08')) {
+		      noTelFormatted = '62' + noTelFormatted.substring(1);
+		  } else if (noTelFormatted.startsWith('+62')) {
+		      noTelFormatted = noTelFormatted.substring(1);
+		  } else if (!noTelFormatted.startsWith('62')) {
+		      noTelFormatted = '62' + noTelFormatted;
+		  }
+
+		  // Format tanggal pengajuan
+		  var tanggalPengajuan = new Date().toLocaleDateString('id-ID', {
+		      day: 'numeric',
+		      month: 'long',
+		      year: 'numeric'
+		  });
+
+		  // Pesan WA
+		  var pesan = encodeURIComponent(
+		      'Halo Pokja ' + kodePokja + ',\n\n' +
+		      'Berikut ringkasan pengajuannya:\n\n' +
+		      'No surat\t: ' + nomorSurat + '\n' +
+		      'Judul Dokumen\t: ' + judulDokumen + '\n' +
+		      'Jenis Dokumen\t: ' + namaJenis + '\n' +
+		      'Tanggal Pengajuan\t: ' + tanggalPengajuan + '\n\n' +
+		      'Dokumen tersebut telah "DISETUJUI" sebelum masuk ke tahap FINAL apakah ada perubahan atau tambahan di dokumen anda? jika ada anda silahkan upload ulang dokumen anda dengan berupa "Word" http://192.168.1.108/app_no-surat untuk informasi lebih lanjut.\n\n' +
+		      'Terima kasih.'
+		  );
+
+		  // Buka WhatsApp Web
+		  var url = 'https://wa.me/' + noTelFormatted + '?text=' + pesan;
+		  window.open(url, '_blank');
+}
+</script>
     </div>
 </section>
