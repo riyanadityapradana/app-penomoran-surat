@@ -19,7 +19,7 @@ $q_rekap = mysqli_query($config, "
         COUNT(p.id_pengajuan) AS total_pengajuan,
         GROUP_CONCAT(DISTINCT j.nama_jenis SEPARATOR ', ') AS jenis_dokumen
     FROM tb_user u
-    LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user
+    LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Menunggu Verifikasi'
     LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
     WHERE u.level = 'Pokja'
     GROUP BY u.id_user
@@ -116,6 +116,13 @@ $q_rekap = mysqli_query($config, "
                             <tbody>
                                 <?php
                                 $no = 1;
+                                $warna_jenis = [
+                                    'SK' => 'badge-primary',
+                                    'SPO' => 'badge-success',
+                                    'Panduan' => 'badge-warning',
+                                    'Pedoman' => 'badge-info',
+                                    // Tambahkan jenis dokumen lainnya jika ada
+                                ];
                                 if (mysqli_num_rows($q_rekap) > 0):
                                     while ($r = mysqli_fetch_assoc($q_rekap)):
                                 ?>
@@ -123,7 +130,19 @@ $q_rekap = mysqli_query($config, "
                                     <td class="text-center"><?= $no++; ?></td>
                                     <td class="text-center"><?= htmlspecialchars($r['kode_pokja']); ?></td>
                                     <td><?= htmlspecialchars($r['nama_lengkap']); ?></td>
-                                    <td class="text-center"><?= htmlspecialchars($r['jenis_dokumen'] ?? '-'); ?></td>
+                                    <td class="text-center">
+                                        <?php
+                                        if (!empty($r['jenis_dokumen'])) {
+                                            $jenis_list = explode(', ', $r['jenis_dokumen']);
+                                            foreach ($jenis_list as $jenis) {
+                                                $warna = $warna_jenis[$jenis] ?? 'badge-secondary';
+                                                echo '<span class="badge ' . $warna . '">' . htmlspecialchars($jenis) . '</span> ';
+                                            }
+                                        } else {
+                                            echo '-';
+                                        }
+                                        ?>
+                                    </td>
                                     <td class="text-center">
                                         <span class="badge badge-primary"><?= $r['total_pengajuan']; ?></span>
                                     </td>
