@@ -30,6 +30,24 @@ $q_tolak = mysqli_query($config, "
     WHERE status = 'Ditolak' AND id_user = '$id_user'
     ORDER BY tanggal_ajuan DESC
 ");
+
+// Data untuk chart
+$chart_labels = [];
+$chart_data = [];
+$q_chart = mysqli_query($config, "
+    SELECT
+        u.nama_lengkap,
+        COUNT(p.id_pengajuan) AS total_pengesahan
+    FROM tb_user u
+    LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'
+    WHERE u.level = 'Pokja'
+    GROUP BY u.id_user
+    ORDER BY total_pengesahan DESC
+");
+while ($row = mysqli_fetch_assoc($q_chart)) {
+    $chart_labels[] = $row['nama_lengkap'];
+    $chart_data[] = (int)$row['total_pengesahan'];
+}
 ?>
 
 <!-- Content Header (Page header) -->
@@ -46,6 +64,43 @@ $q_tolak = mysqli_query($config, "
         </div>
     </div>
 </section>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script>
+$(document).ready(function() {
+    console.log('Labels:', <?php echo json_encode($chart_labels); ?>);
+    console.log('Data:', <?php echo json_encode($chart_data); ?>);
+    Highcharts.chart('statusChart', {
+        chart: {
+            type: 'column'
+        },
+        title: {
+            text: 'Grafik Status Pengajuan Dokumen yang Diajukan per Pokja dengan Status Selesai'
+        },
+        xAxis: {
+            categories: <?php echo json_encode($chart_labels); ?>,
+            title: {
+                text: 'Status Pengajuan'
+            }
+        },
+        yAxis: {
+            title: {
+                text: 'Jumlah Pengajuan'
+            },
+            allowDecimals: false
+        },
+        series: [{
+            name: 'Jumlah',
+            data: <?php echo json_encode($chart_data); ?>,
+            color: '#17a2b8'
+        }],
+        credits: {
+            enabled: false
+        }
+    });
+});
+</script>
 
 <!-- Main content -->
 <section class="content">
@@ -167,7 +222,10 @@ $q_tolak = mysqli_query($config, "
                     </div>
                 </div>
             </div>
-
+            <div class="col-md-12">
+                <!-- <h4 class="text-center mb-3">Grafik Batang Pengajuan Dokumen per Pokja</h4> -->
+                <div id="statusChart" style="width:100%; height:500px;"></div>
+            </div>
         </div>
         <!-- /.row dua tabel -->
 
