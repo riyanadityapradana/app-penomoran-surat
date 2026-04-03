@@ -1,219 +1,196 @@
 <?php
-	if (!isset($_SESSION['id_user'])) {
-		echo "<script>
-				alert('Silakan login terlebih dahulu!');
-				window.location = '../login.php';
-			  </script>";
-		exit;
-	}
+if (!isset($_SESSION['id_user'])) {
+    echo "<script>alert('Silakan login terlebih dahulu!');window.location='../login.php';</script>";
+    exit;
+}
 
-	// Ambil data user untuk auto-fill
-	$user_id = $_SESSION['id_user'];
-	$query_user = mysqli_query($config, "SELECT kode_pokja FROM tb_user WHERE id_user = '$user_id'");
-	$user_data = mysqli_fetch_assoc($query_user);
-	$kode_pokja = $user_data['kode_pokja'] ?? '';
+$user_id = $_SESSION['id_user'];
+$query_user = mysqli_query($config, "SELECT kode_pokja FROM tb_user WHERE id_user = '$user_id'");
+$user_data = mysqli_fetch_assoc($query_user);
+$kode_pokja = $user_data['kode_pokja'] ?? '';
 
-	// --- AMBIL DATA BERDASARKAN ID --- //
-	if (isset($_GET['id_pengajuan'])) {
-		$id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
-		$query = mysqli_query($config, "
-			SELECT * FROM tb_pengajuan_dokumen 
-			WHERE id_pengajuan = '$id_pengajuan' AND id_user = '{$_SESSION['id_user']}'
-		");
-		$data = mysqli_fetch_assoc($query);
+$checkNoTlpColumn = mysqli_query($config, "SHOW COLUMNS FROM tb_pengajuan_dokumen LIKE 'no_tlp'");
+$hasNoTlpColumn = $checkNoTlpColumn && mysqli_num_rows($checkNoTlpColumn) > 0;
 
-		if (!$data) {
-			echo "<script>
-					alert('Data pengajuan tidak ditemukan!');
-					window.location = 'main_pokja.php?unit=pengajuan';
-				  </script>";
-			exit;
-		}
-	} else {
-		echo "<script>
-				alert('Parameter ID tidak ditemukan!');
-				window.location = 'main_pokja.php?unit=pengajuan';
-			  </script>";
-		exit;
-	}
+if (isset($_GET['id_pengajuan'])) {
+    $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
+    $query = mysqli_query($config, "SELECT * FROM tb_pengajuan_dokumen WHERE id_pengajuan = '$id_pengajuan' AND id_user = '{$_SESSION['id_user']}'");
+    $data = mysqli_fetch_assoc($query);
 
-	// --- CEGAH EDIT JIKA STATUS BUKAN MENUNGGU VERIFIKASI ATAU DISETUJUI --- //
-	if ($data['status'] != 'Menunggu Verifikasi' && $data['status'] != 'Disetujui') {
-		echo "<script>
-				alert('Data tidak dapat diedit karena status sudah selesai atau ditolak!');
-				window.location = 'main_pokja.php?unit=pengajuan';
-			  </script>";
-		exit;
-	}
+    if (!$data) {
+        echo "<script>alert('Data pengajuan tidak ditemukan!');window.location='main_pokja.php?unit=pengajuan';</script>";
+        exit;
+    }
+} else {
+    echo "<script>alert('Parameter ID tidak ditemukan!');window.location='main_pokja.php?unit=pengajuan';</script>";
+    exit;
+}
 
-	// --- PROSES UPDATE --- //
-	if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-		$id_pengajuan    = mysqli_real_escape_string($config, $_POST['id_pengajuan']);
-		$id_jenis        = mysqli_real_escape_string($config, $_POST['id_jenis']);
-		$judul_dokumen   = mysqli_real_escape_string($config, $_POST['judul_dokumen']);
-		$tanggal_dokumen = mysqli_real_escape_string($config, $_POST['tanggal_dokumen']);
-		$no_tel = mysqli_real_escape_string($config, $_POST['no_telepon']);
-		$elemen_penilaian_input = mysqli_real_escape_string($config, $_POST['elemen_penilaian']);
-		$elemen_penilaian = $kode_pokja . '-' . $elemen_penilaian_input; // gabungkan kode_pokja dengan input user
-		$file_draft_lama = mysqli_real_escape_string($config, $_POST['file_draft_lama']);
+if ($data['status'] != 'Menunggu Verifikasi' && $data['status'] != 'Disetujui') {
+    echo "<script>alert('Data tidak dapat diedit karena status sudah selesai atau ditolak!');window.location='main_pokja.php?unit=pengajuan';</script>";
+    exit;
+}
 
-		$file_draft = $file_draft_lama;
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $id_pengajuan = mysqli_real_escape_string($config, $_POST['id_pengajuan']);
+    $id_jenis = mysqli_real_escape_string($config, $_POST['id_jenis']);
+    $judul_dokumen = mysqli_real_escape_string($config, $_POST['judul_dokumen']);
+    $tanggal_dokumen = mysqli_real_escape_string($config, $_POST['tanggal_dokumen']);
+    $no_tel = mysqli_real_escape_string($config, $_POST['no_telepon'] ?? '');
+    $elemen_penilaian_input = mysqli_real_escape_string($config, $_POST['elemen_penilaian']);
+    $elemen_penilaian = $kode_pokja . '-' . $elemen_penilaian_input;
+    $file_draft_lama = mysqli_real_escape_string($config, $_POST['file_draft_lama']);
 
-		// Jika ada file baru diupload
-		if (!empty($_FILES['file_draft']['name'])) {
-			$namaFile = $_FILES['file_draft']['name'];
-			$tmpFile  = $_FILES['file_draft']['tmp_name'];
-			$ukuran   = $_FILES['file_draft']['size'];
-			$ext      = strtolower(pathinfo($namaFile, PATHINFO_EXTENSION));
+    $file_draft = $file_draft_lama;
 
-			// Validasi tipe file
-			$allowed = ['doc', 'docx'];
-			if (!in_array($ext, $allowed)) {
-				echo "<script>alert('Hanya file Word (.doc/.docx) yang diperbolehkan!');</script>";
-			} elseif ($ukuran > 10485760) { // 10MB
-				echo "<script>alert('Ukuran file maksimal 10MB!');</script>";
-			} else {
-				// Hapus file lama jika ada
-				if (!empty($data['file_draft']) && file_exists("../assets/upload/draft_word/" . $data['file_draft'])) {
-					unlink("../assets/upload/draft_word/" . $data['file_draft']);
-				}
+    if (!empty($_FILES['file_draft']['name'])) {
+        $namaFile = $_FILES['file_draft']['name'];
+        $tmpFile = $_FILES['file_draft']['tmp_name'];
+        $ukuran = $_FILES['file_draft']['size'];
+        $ext = strtolower(pathinfo($namaFile, PATHINFO_EXTENSION));
 
-				$newName = "draft_" . time() . "." . $ext;
-				$tujuan = "../assets/upload/draft_word/" . $newName;
+        $allowed = ['doc', 'docx'];
+        if (!in_array($ext, $allowed)) {
+            echo "<script>alert('Hanya file Word (.doc/.docx) yang diperbolehkan!');</script>";
+        } elseif ($ukuran > 10485760) {
+            echo "<script>alert('Ukuran file maksimal 10MB!');</script>";
+        } else {
+            if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
+                unlink('../assets/upload/draft_word/' . $data['file_draft']);
+            }
 
-				if (move_uploaded_file($tmpFile, $tujuan)) {
-					$file_draft = $newName;
-				}
-			}
-		}
+            $newName = 'draft_' . time() . '.' . $ext;
+            $tujuan = '../assets/upload/draft_word/' . $newName;
 
-		$query_update = "UPDATE tb_pengajuan_dokumen SET
-							id_jenis = '$id_jenis',
-							judul_dokumen = '$judul_dokumen',
-							tanggal_dokumen = '$tanggal_dokumen',
-							no_tlp = '$no_tel',
-							elemen_penilaian = '$elemen_penilaian',
-							file_draft = '$file_draft'
-						WHERE id_pengajuan = '$id_pengajuan'";
+            if (move_uploaded_file($tmpFile, $tujuan)) {
+                $file_draft = $newName;
+            }
+        }
+    }
 
-		if (mysqli_query($config, $query_update)) {
-			echo "<script>
-					alert('Data pengajuan berhasil diperbarui!');
-					window.location = 'main_pokja.php?unit=pengajuan';
-				  </script>";
-		} else {
-			echo "<script>
-					alert('Gagal memperbarui data: " . mysqli_error($config) . "');
-					window.location = 'main_pokja.php?unit=pengajuan';
-				  </script>";
-		}
-	}
-	?>
+    $setParts = [
+        "id_jenis = '$id_jenis'",
+        "judul_dokumen = '$judul_dokumen'",
+        "tanggal_dokumen = '$tanggal_dokumen'",
+        "elemen_penilaian = '$elemen_penilaian'",
+        "file_draft = '$file_draft'"
+    ];
 
-	<section class="content-header">
-		<h1>Edit Pengajuan Dokumen</h1>
-	</section>
+    if ($hasNoTlpColumn) {
+        $setParts[] = "no_tlp = '$no_tel'";
+    }
 
-	<section class="content">
-		<div class="container-fluid">
-			<div class="card card-default">
-				<div class="card-header">
-					<h3 class="card-title">Form Edit Pengajuan</h3>
-				</div>
+    $query_update = "UPDATE tb_pengajuan_dokumen SET " . implode(', ', $setParts) . " WHERE id_pengajuan = '$id_pengajuan'";
 
-				<form method="post" enctype="multipart/form-data">
-					<input type="hidden" name="id_pengajuan" value="<?php echo $data['id_pengajuan']; ?>">
-					<input type="hidden" name="file_draft_lama" value="<?php echo $data['file_draft']; ?>">
+    if (mysqli_query($config, $query_update)) {
+        echo "<script>alert('Data pengajuan berhasil diperbarui!');window.location='main_pokja.php?unit=pengajuan';</script>";
+    } else {
+        echo "<script>alert('Gagal memperbarui data: " . mysqli_error($config) . "');window.location='main_pokja.php?unit=pengajuan';</script>";
+    }
+}
+?>
 
-					<div class="card-body">
-						<div class="row">
-							<div class="col-sm-6">
-								<div class="form-group">
-									<label>Standard EP</label>
-									<?php
-									// Ambil bagian setelah kode_pokja untuk form edit
-									$current_value = '';
-									if (!empty($data['elemen_penilaian'])) {
-										$parts = explode('-', $data['elemen_penilaian'], 2);
-										if (count($parts) > 1) {
-											$current_value = $parts[1];
-										}
-									}
-									?>
-									<div class="input-group">
-										<span class="input-group-text"><i class="fas fa-tags"></i></span>
-										<input type="text" class="form-control" value="<?php echo $kode_pokja; ?>" readonly style="background-color: #f8f9fa; font-weight: bold;">
-										<span class="input-group-text">-</span>
-										<input type="text" name="elemen_penilaian" class="form-control" placeholder="Contoh: 1 EP 3" value="<?php echo htmlspecialchars($current_value); ?>" required>
-									</div>
-									<small class="form-text text-muted"><b>Note:</b> pokja "<?php echo $kode_pokja; ?>" sudah otomatis.Jadi sisanya masukkan nomor dan EP berapa dan jika berhubungan dengan Standard EP lain, gunakan format (1 EP 3 dan 1 EP 4)</small>
-								</div>
-							</div>
-							<div class="col-sm-6">
-								<div class="form-group">
-									<label>Jenis Dokumen</label>
-									<select name="id_jenis" class="form-control" required>
-										<option value="">-- Pilih Jenis Dokumen --</option>
-										<?php
-										$qJenis = mysqli_query($config, "SELECT * FROM tb_jenis_dokumen");
-										while ($j = mysqli_fetch_assoc($qJenis)) {
-											$selected = ($j['id_jenis'] == $data['id_jenis']) ? 'selected' : '';
-											echo "<option value='{$j['id_jenis']}' {$selected}>{$j['nama_jenis']}</option>";
-										}
-										?>
-									</select>
-								</div>
-							</div>
-						</div>
+<section class="content-header">
+    <h1>Edit Pengajuan Dokumen</h1>
+</section>
 
-						<div class="row">
-							<div class="col-sm-12">
-								<div class="form-group">
-									<label>Judul Dokumen</label>
-									<input type="text" name="judul_dokumen" class="form-control"
-										   value="<?php echo htmlspecialchars($data['judul_dokumen']); ?>" required>
-								</div>
+<section class="content">
+    <div class="container-fluid">
+        <div class="card card-default">
+            <div class="card-header">
+                <h3 class="card-title">Form Edit Pengajuan</h3>
+            </div>
 
-								<div class="form-group">
-									<label>Tanggal Dokumen</label>
-									<input type="date" name="tanggal_dokumen" class="form-control"
-										   value="<?php echo $data['tanggal_dokumen']; ?>" required>
-								</div>
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="id_pengajuan" value="<?php echo $data['id_pengajuan']; ?>">
+                <input type="hidden" name="file_draft_lama" value="<?php echo $data['file_draft']; ?>">
 
-								<div class="form-group">
-									<label>Nomor Telepon</label>
-									<div class="input-group">
-										<span class="input-group-text"><i class="fas fa-phone"></i></span>
-										<input type="text" name="no_telepon" class="form-control" placeholder="Contoh: 08123456789" value="<?php echo htmlspecialchars($data['no_tlp'] ?? ''); ?>" required>
-									</div>
-									<small class="form-text text-muted">Masukkan nomor telepon yang dapat dihubungi untuk konfirmasi.</small>
-								</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <div class="form-group">
+                                <label>Standard EP</label>
+                                <?php
+                                $current_value = '';
+                                if (!empty($data['elemen_penilaian'])) {
+                                    $parts = explode('-', $data['elemen_penilaian'], 2);
+                                    if (count($parts) > 1) {
+                                        $current_value = $parts[1];
+                                    }
+                                }
+                                ?>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-tags"></i></span>
+                                    <input type="text" class="form-control" value="<?php echo $kode_pokja; ?>" readonly style="background-color: #f8f9fa; font-weight: bold;">
+                                    <span class="input-group-text">-</span>
+                                    <input type="text" name="elemen_penilaian" class="form-control" placeholder="Contoh: 1 EP 3" value="<?php echo htmlspecialchars($current_value); ?>" required>
+                                </div>
+                                <small class="form-text text-muted"><b>Note:</b> pokja "<?php echo $kode_pokja; ?>" sudah otomatis.</small>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="form-group">
+                                <label>Jenis Dokumen</label>
+                                <select name="id_jenis" class="form-control" required>
+                                    <option value="">-- Pilih Jenis Dokumen --</option>
+                                    <?php
+                                    $qJenis = mysqli_query($config, "SELECT * FROM tb_jenis_dokumen");
+                                    while ($j = mysqli_fetch_assoc($qJenis)) {
+                                        $selected = ($j['id_jenis'] == $data['id_jenis']) ? 'selected' : '';
+                                        echo "<option value='{$j['id_jenis']}' {$selected}>{$j['nama_jenis']}</option>";
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-								<div class="form-group">
-									<label>File Draft (Word) <small>(Kosongkan jika tidak ingin diubah, maks 10MB)</small></label><br>
-									<?php if (!empty($data['file_draft'])): ?>
-										<a href="../assets/upload/draft_word/<?php echo $data['file_draft']; ?>"
-										   target="_blank" class="btn btn-sm btn-info mb-2">
-										   <i class="fas fa-file-word"></i> Lihat File Lama
-										</a><br>
-									<?php endif; ?>
-									<input type="file" name="file_draft" class="form-control-file" accept=".doc,.docx">
-								</div>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="form-group">
+                                <label>Judul Dokumen</label>
+                                <input type="text" name="judul_dokumen" class="form-control" value="<?php echo htmlspecialchars($data['judul_dokumen']); ?>" required>
+                            </div>
 
-							</div>
-						</div>
-					</div>
+                            <div class="form-group">
+                                <label>Tanggal Dokumen</label>
+                                <input type="date" name="tanggal_dokumen" class="form-control" value="<?php echo $data['tanggal_dokumen']; ?>" required>
+                            </div>
 
-					<div class="card-footer">
-						<a class="btn btn-app bg-warning float-left" href="main_pokja.php?unit=pengajuan">
-							<i class="fas fa-reply"></i> Back
-						</a>
-						<button class="btn btn-app bg-success float-right" type="submit">
-							<i class="fas fa-save"></i> UPDATE
-						</button>
-					</div>
-				</form>
-			</div>
-		</div>
-		<br><br>
-	</section>
+                            <?php if ($hasNoTlpColumn): ?>
+                            <div class="form-group">
+                                <label>Nomor Telepon</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    <input type="text" name="no_telepon" class="form-control" placeholder="Contoh: 08123456789" value="<?php echo htmlspecialchars($data['no_tlp'] ?? ''); ?>" required>
+                                </div>
+                                <small class="form-text text-muted">Masukkan nomor telepon yang dapat dihubungi untuk konfirmasi.</small>
+                            </div>
+                            <?php endif; ?>
+
+                            <div class="form-group">
+                                <label>File Draft (Word) <small>(Kosongkan jika tidak ingin diubah, maks 10MB)</small></label><br>
+                                <?php if (!empty($data['file_draft'])): ?>
+                                    <a href="../assets/upload/draft_word/<?php echo $data['file_draft']; ?>" target="_blank" class="btn btn-sm btn-info mb-2">
+                                        <i class="fas fa-file-word"></i> Lihat File Lama
+                                    </a><br>
+                                <?php endif; ?>
+                                <input type="file" name="file_draft" class="form-control-file" accept=".doc,.docx">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <a class="btn btn-app bg-warning float-left" href="main_pokja.php?unit=pengajuan">
+                        <i class="fas fa-reply"></i> Back
+                    </a>
+                    <button class="btn btn-app bg-success float-right" type="submit">
+                        <i class="fas fa-save"></i> UPDATE
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <br><br>
+</section>

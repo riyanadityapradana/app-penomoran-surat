@@ -1,10 +1,11 @@
 <?php
 require_once("../config/koneksi.php");
+require_once("../config/notifikasi.php");
 
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
     $query = mysqli_query($config, "
-        SELECT p.*, j.nama_jenis, j.kode_jenis, u.nama_lengkap, u.kode_pokja 
+        SELECT p.*, j.nama_jenis, j.kode_jenis, u.nama_lengkap, u.kode_pokja, u.email_user
         FROM tb_pengajuan_dokumen p
         LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
         LEFT JOIN tb_user u ON p.id_user = u.id_user
@@ -21,37 +22,28 @@ if (isset($_GET['id_pengajuan'])) {
     exit;
 }
 
-// --- PROSES VERIFIKASI --- //
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
     $catatan_admin = mysqli_real_escape_string($config, $_POST['catatan_admin']);
-    $tanggal_disetujui = date('Y-m-d');
+    $tanggal_disetujui = date('Y-m-d H:i:s');
 
-    // Buat nomor surat otomatis
     $jenis_dokumen = strtoupper($data['kode_jenis']);
     $kode_pokja = strtoupper($data['kode_pokja']);
-    $bulan_romawi = [
-        1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
-        7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
-    ];
-    $bulan = $bulan_romawi[(int)date('n')];
+    $bulan_romawi = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'];
+    $bulan = $bulan_romawi[(int) date('n')];
     $tahun = date('Y');
 
-    // Ambil nomor surat terakhir berdasarkan kode_pokja
     $q_nomor = mysqli_query($config, "
-        SELECT p.nomor_surat 
+        SELECT p.nomor_surat
         FROM tb_pengajuan_dokumen p
         LEFT JOIN tb_user u ON p.id_user = u.id_user
         WHERE u.kode_pokja = '$kode_pokja'
           AND p.nomor_surat IS NOT NULL
-        ORDER BY p.id_pengajuan DESC 
+        ORDER BY p.id_pengajuan DESC
         LIMIT 1
     ");
 
     if (mysqli_num_rows($q_nomor) > 0) {
         $last_nomor = mysqli_fetch_assoc($q_nomor)['nomor_surat'];
-
-        // Format contoh: A/001/SPO/KPS/I/2025
-        // Pecah bagian berdasarkan '/'
         $parts = explode('/', $last_nomor);
         $last_urutan = 0;
 
@@ -59,19 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
             $last_urutan = (int) trim($parts[1]);
         }
 
-        // Tambahkan 1 dan ubah ke format 3 digit
         $urutan = str_pad($last_urutan + 1, 3, '0', STR_PAD_LEFT);
     } else {
-        // Jika belum ada nomor surat untuk Pokja ini
         $urutan = '001';
     }
 
-    // Buat format nomor surat baru
     $nomor_surat = "A/$urutan/$jenis_dokumen/$kode_pokja/$bulan/$tahun";
 
-    // Update data pengajuan
     $update = mysqli_query($config, "
-        UPDATE tb_pengajuan_dokumen SET 
+        UPDATE tb_pengajuan_dokumen SET
             status = 'Disetujui',
             tanggal_disetujui = '$tanggal_disetujui',
             catatan_admin = '$catatan_admin',
@@ -80,7 +68,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
     ");
 
     if ($update) {
-        header('Location: main_admin.php?unit=pengajuan&msg=Pengajuan berhasil diverifikasi dan nomor surat telah dibuat!');
+        $pokjaLink = app_base_url() . '/pokja/main_pokja.php?unit=pengajuan';
+        $emailSubject = 'Pengajuan Dokumen Disetujui - ' . $data['judul_dokumen'];
+        $emailBody = "
+            <p>Halo <b>" . htmlspecialchars($data['nama_lengkap']) . "</b>,</p>
+            <p>Pengajuan dokumen Anda telah <b>disetujui</b> oleh admin.</p>
+            <table border='0' cellpadding='6' cellspacing='0' style='border-collapse:collapse;'>
+                <tr><td><b>Kode Pokja</b></td><td>: " . htmlspecialchars($data['kode_pokja']) . "</td></tr>
+                <tr><td><b>Judul Dokumen</b></td><td>: " . htmlspecialchars($data['judul_dokumen']) . "</td></tr>
+                <tr><td><b>Jenis Dokumen</b></td><td>: " . htmlspecialchars($data['nama_jenis']) . "</td></tr>
+                <tr><td><b>Nomor Surat</b></td><td>: " . htmlspecialchars($nomor_surat) . "</td></tr>
+                <tr><td><b>Tanggal Disetujui</b></td><td>: " . htmlspecialchars(app_format_datetime_id($tanggal_disetujui)) . "</td></tr>
+                <tr><td><b>Catatan Admin</b></td><td>: " . nl2br(htmlspecialchars($catatan_admin)) . "</td></tr>
+            </table>
+            <p>Silakan login ke aplikasi untuk melihat detail pengajuan.</p>
+            <p><a href='" . htmlspecialchars($pokjaLink) . "'>Buka halaman pengajuan</a></p>
+        ";
+        if (!empty($data['email_user'])) {
+            app_send_email($data['email_user'], $emailSubject, $emailBody);
+        }
+
+        $telegramMessage = "<b>Pengajuan Dokumen Disetujui</b>\n"
+            . "Pokja: <b>" . htmlspecialchars($data['kode_pokja']) . "</b>\n"
+            . "Judul: <b>" . htmlspecialchars($data['judul_dokumen']) . "</b>\n"
+            . "Jenis: <b>" . htmlspecialchars($data['nama_jenis']) . "</b>\n"
+            . "Nomor Surat: <b>" . htmlspecialchars($nomor_surat) . "</b>\n"
+            . "Status: <b>Disetujui</b>\n"
+            . "Link: " . htmlspecialchars($pokjaLink);
+        app_send_telegram($telegramMessage);
+
+        header('Location: main_admin.php?unit=pengajuan&msg=Pengajuan berhasil diverifikasi, email dan Telegram sudah diproses!');
         exit;
     } else {
         echo "<script>alert('Gagal memverifikasi pengajuan: " . mysqli_error($config) . "');</script>";

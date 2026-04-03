@@ -1,11 +1,11 @@
 <?php
 require_once("../config/koneksi.php");
+require_once("../config/notifikasi.php");
 
-// --- AMBIL DATA BERDASARKAN ID --- //
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
     $query = mysqli_query($config, "
-        SELECT p.*, j.nama_jenis, u.nama_lengkap, u.kode_pokja
+        SELECT p.*, j.nama_jenis, u.nama_lengkap, u.kode_pokja, u.email_user
         FROM tb_pengajuan_dokumen p
         LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
         LEFT JOIN tb_user u ON p.id_user = u.id_user
@@ -18,11 +18,10 @@ if (isset($_GET['id_pengajuan'])) {
         exit;
     }
 } else {
-     header('Location: main_admin.php?unit=pengajuan&err=ID Pengajuan tidak ditemukan!');
+    header('Location: main_admin.php?unit=pengajuan&err=ID Pengajuan tidak ditemukan!');
     exit;
 }
 
-// --- PROSES UPLOAD PDF FINAL (TANPA EMAIL) --- //
 if (isset($_POST['upload_pdf'])) {
     $file_tmp = $_FILES['file_pdf']['tmp_name'];
     $file_name = $_FILES['file_pdf']['name'];
@@ -34,20 +33,46 @@ if (isset($_POST['upload_pdf'])) {
         $new_name = 'dokumen_final_' . time() . '.pdf';
         $upload_path = '../assets/upload/draft_word/' . $new_name;
 
-        // Hapus file lama jika ada
         if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
             unlink('../assets/upload/draft_word/' . $data['file_draft']);
         }
 
         if (move_uploaded_file($file_tmp, $upload_path)) {
-            // Update database
             mysqli_query($config, "
-                UPDATE tb_pengajuan_dokumen 
-                SET file_draft='$new_name', status='Selesai'
+                UPDATE tb_pengajuan_dokumen
+                SET file_draft='$new_name', file_final='$new_name', status='Selesai'
                 WHERE id_pengajuan='$id_pengajuan'
             ");
 
-            header('Location: main_admin.php?unit=pengajuan&msg=File PDF berhasil diupload dan status diubah menjadi SELESAI!');
+            $pokjaLink = app_base_url() . '/pokja/main_pokja.php?unit=pengesahan';
+            $emailSubject = 'Dokumen Final Siap Diunduh - ' . $data['judul_dokumen'];
+            $emailBody = "
+                <p>Halo <b>" . htmlspecialchars($data['nama_lengkap']) . "</b>,</p>
+                <p>Dokumen final Anda sudah diupload admin dan saat ini berstatus <b>Selesai</b>.</p>
+                <table border='0' cellpadding='6' cellspacing='0' style='border-collapse:collapse;'>
+                    <tr><td><b>Kode Pokja</b></td><td>: " . htmlspecialchars($data['kode_pokja']) . "</td></tr>
+                    <tr><td><b>Judul Dokumen</b></td><td>: " . htmlspecialchars($data['judul_dokumen']) . "</td></tr>
+                    <tr><td><b>Jenis Dokumen</b></td><td>: " . htmlspecialchars($data['nama_jenis']) . "</td></tr>
+                    <tr><td><b>Nomor Surat</b></td><td>: " . htmlspecialchars($data['nomor_surat']) . "</td></tr>
+                    <tr><td><b>Status</b></td><td>: Selesai</td></tr>
+                </table>
+                <p>Silakan login ke aplikasi untuk mengunduh file final.</p>
+                <p><a href='" . htmlspecialchars($pokjaLink) . "'>Buka halaman pengesahan</a></p>
+            ";
+            if (!empty($data['email_user'])) {
+                app_send_email($data['email_user'], $emailSubject, $emailBody);
+            }
+
+            $telegramMessage = "<b>Dokumen Final Siap Diunduh</b>\n"
+                . "Pokja: <b>" . htmlspecialchars($data['kode_pokja']) . "</b>\n"
+                . "Judul: <b>" . htmlspecialchars($data['judul_dokumen']) . "</b>\n"
+                . "Jenis: <b>" . htmlspecialchars($data['nama_jenis']) . "</b>\n"
+                . "Nomor Surat: <b>" . htmlspecialchars($data['nomor_surat']) . "</b>\n"
+                . "Status: <b>Selesai</b>\n"
+                . "Link: " . htmlspecialchars($pokjaLink);
+            app_send_telegram($telegramMessage);
+
+            header('Location: main_admin.php?unit=pengajuan&msg=File PDF berhasil diupload, status SELESAI, email dan Telegram sudah diproses!');
             exit;
         } else {
             header('Location: main_admin.php?unit=detail_pengajuan&err=Gagal mengupload file!');
@@ -55,7 +80,6 @@ if (isset($_POST['upload_pdf'])) {
     }
 }
 
-// --- WARNA BADGE STATUS --- //
 function getBadgeClass($status) {
     switch ($status) {
         case 'Menunggu Verifikasi': return 'badge badge-warning';
@@ -79,7 +103,7 @@ function getBadgeClass($status) {
                 <h3 class="card-title">Informasi Pengajuan dari Pokja</h3>
                 <div class="ml-auto" style="position:absolute; right:24px; top:9px;">
                 <?php if (!empty($data['file_draft'])): ?>
-                    <a href="../assets/upload/draft_word/<?= $data['file_draft']; ?>" 
+                    <a href="../assets/upload/draft_word/<?= $data['file_draft']; ?>"
                        class="btn btn-sm btn-success ml-2" download onclick="openAndPrint()">
                         <i class="fas fa-download"></i> Download
                     </a>
@@ -120,13 +144,13 @@ function getBadgeClass($status) {
                                 <?= htmlspecialchars($data['status']); ?>
                             </span>
                             <?php if ($data['status'] == 'Menunggu Verifikasi'): ?>
-                                <a href="main_admin.php?unit=verifikasi_pengajuan&id_pengajuan=<?= $data['id_pengajuan']; ?>" 
-									class="btn btn-sm btn-success ml-2">
-									<i class="fas fa-check"></i> Verifikasi
+                                <a href="main_admin.php?unit=verifikasi_pengajuan&id_pengajuan=<?= $data['id_pengajuan']; ?>"
+                                    class="btn btn-sm btn-success ml-2">
+                                    <i class="fas fa-check"></i> Verifikasi
                                 </a>
-								<a href="main_admin.php?unit=tolak_pengajuan&id_pengajuan=<?= $data['id_pengajuan']; ?>" 
-									class="btn btn-sm btn-danger ml-2">
-									<i class="fas fa-times"></i> Tolak
+                                <a href="main_admin.php?unit=tolak_pengajuan&id_pengajuan=<?= $data['id_pengajuan']; ?>"
+                                    class="btn btn-sm btn-danger ml-2">
+                                    <i class="fas fa-times"></i> Tolak
                                 </a>
                             <?php elseif ($data['status'] == 'Disetujui'): ?>
                                 <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2">
@@ -162,7 +186,7 @@ function getBadgeClass($status) {
                         <td>
                             <?= !empty($data['no_tlp']) ? htmlspecialchars($data['no_tlp']) : '<em>Belum ada nomor telepon</em>'; ?>
                             <button type='button' class='btn btn-sm btn-success' onclick='kirimWA(<?= $data['id_pengajuan']; ?>, "<?= $data['no_tlp']; ?>", "<?= $data['kode_pokja']; ?>", "<?= $data['nomor_surat']; ?>", "<?= $data['judul_dokumen']; ?>", "<?= $data['nama_jenis']; ?>", "<?= $data['tanggal_dokumen']; ?>")'>
-								<i class='fab fa-whatsapp'></i>	
+                                <i class='fab fa-whatsapp'></i>
                             </button>
                         </td>
                     </tr>
@@ -175,18 +199,8 @@ function getBadgeClass($status) {
                 </table>
 
                 <hr>
-                <!-- Tombol Download dipindahkan ke card-header -->
 
                 <?php if (!empty($data['file_draft'])): ?>
-                    <?php
-                    $file_url = 'http://localhost:8080/akreditas/assets/upload/draft_word/' . urlencode($data['file_draft']);
-                    ?>
-                   <!-- <iframe 
-                        src="https://docs.google.com/gview?url=<?= $file_url; ?>&embedded=true"
-                        style="width:100%; height:600px;" 
-                        frameborder="0">
-                    </iframe>-->
-
                     <script>
                     function openAndPrint() {
                         const fileUrl = "../assets/upload/draft_word/<?= $data['file_draft']; ?>";
@@ -217,43 +231,39 @@ function getBadgeClass($status) {
 
     <script>
 function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJenis, tanggalDokumen) {
-		  if (!noTel || noTel.trim() === '') {
-		      alert('Nomor telepon tidak tersedia untuk pengajuan ini.');
-		      return;
-		  }
+          if (!noTel || noTel.trim() === '') {
+              alert('Nomor telepon tidak tersedia untuk pengajuan ini.');
+              return;
+          }
 
-		  // Format nomor telepon (pastikan dimulai dengan 62)
-		  var noTelFormatted = noTel.trim();
-		  if (noTelFormatted.startsWith('08')) {
-		      noTelFormatted = '62' + noTelFormatted.substring(1);
-		  } else if (noTelFormatted.startsWith('+62')) {
-		      noTelFormatted = noTelFormatted.substring(1);
-		  } else if (!noTelFormatted.startsWith('62')) {
-		      noTelFormatted = '62' + noTelFormatted;
-		  }
+          var noTelFormatted = noTel.trim();
+          if (noTelFormatted.startsWith('08')) {
+              noTelFormatted = '62' + noTelFormatted.substring(1);
+          } else if (noTelFormatted.startsWith('+62')) {
+              noTelFormatted = noTelFormatted.substring(1);
+          } else if (!noTelFormatted.startsWith('62')) {
+              noTelFormatted = '62' + noTelFormatted;
+          }
 
-		  // Format tanggal pengajuan
-		  var tanggalPengajuan = new Date().toLocaleDateString('id-ID', {
-		      day: 'numeric',
-		      month: 'long',
-		      year: 'numeric'
-		  });
+          var tanggalPengajuan = new Date().toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+          });
 
-		  // Pesan WA
-		  var pesan = encodeURIComponent(
-		      'Halo Pokja ' + kodePokja + ',\n\n' +
-		      'Berikut ringkasan pengajuannya:\n\n' +
-		      'No surat\t: ' + nomorSurat + '\n' +
-		      'Judul Dokumen\t: ' + judulDokumen + '\n' +
-		      'Jenis Dokumen\t: ' + namaJenis + '\n' +
-		      'Tanggal Pengajuan\t: ' + tanggalPengajuan + '\n\n' +
-		      'Dokumen tersebut telah "DISETUJUI" sebelum masuk ke tahap FINAL apakah ada perubahan atau tambahan di dokumen anda? jika ada anda silahkan upload ulang dokumen anda dengan berupa "Word" http://192.168.1.108/app_no-surat untuk informasi lebih lanjut.\n\n' +
-		      'Terima kasih.'
-		  );
+          var pesan = encodeURIComponent(
+              'Halo Pokja ' + kodePokja + ',\n\n' +
+              'Berikut ringkasan pengajuannya:\n\n' +
+              'No surat\t: ' + nomorSurat + '\n' +
+              'Judul Dokumen\t: ' + judulDokumen + '\n' +
+              'Jenis Dokumen\t: ' + namaJenis + '\n' +
+              'Tanggal Pengajuan\t: ' + tanggalPengajuan + '\n\n' +
+              'Dokumen tersebut telah "DISETUJUI" sebelum masuk ke tahap FINAL apakah ada perubahan atau tambahan di dokumen anda? jika ada anda silahkan upload ulang dokumen anda dengan berupa "Word" http://192.168.1.108/app_no-surat untuk informasi lebih lanjut.\n\n' +
+              'Terima kasih.'
+          );
 
-		  // Buka WhatsApp Web
-		  var url = 'https://wa.me/' + noTelFormatted + '?text=' + pesan;
-		  window.open(url, '_blank');
+          var url = 'https://wa.me/' + noTelFormatted + '?text=' + pesan;
+          window.open(url, '_blank');
 }
 </script>
     </div>
