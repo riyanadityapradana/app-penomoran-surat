@@ -15,6 +15,16 @@ $ditolak = mysqli_num_rows($q_ditolak);
 $q_selesai = mysqli_query($config, "SELECT * FROM tb_pengajuan_dokumen WHERE status = 'Selesai' AND id_user = '$id_user'");
 $selesai = mysqli_num_rows($q_selesai);
 
+$q_selesai_bulan_ini = mysqli_query($config, "
+    SELECT COUNT(*) AS total
+    FROM tb_pengajuan_dokumen
+    WHERE status = 'Selesai'
+      AND id_user = '$id_user'
+      AND MONTH(COALESCE(tanggal_disetujui, tanggal_ajuan)) = MONTH(CURDATE())
+      AND YEAR(COALESCE(tanggal_disetujui, tanggal_ajuan)) = YEAR(CURDATE())
+");
+$selesai_bulan_ini = (int) mysqli_fetch_assoc($q_selesai_bulan_ini)['total'];
+
 // Ambil data diterima (disetujui dan selesai)
 $q_diterima = mysqli_query($config, "
     SELECT judul_dokumen, tanggal_ajuan, catatan_admin
@@ -47,6 +57,36 @@ $q_chart = mysqli_query($config, "
 while ($row = mysqli_fetch_assoc($q_chart)) {
     $chart_labels[] = $row['nama_lengkap'];
     $chart_data[] = (int)$row['total_pengesahan'];
+}
+
+$trend_labels = [];
+$trend_menunggu = [];
+$trend_disetujui = [];
+$trend_ditolak = [];
+$trend_selesai = [];
+for ($i = 5; $i >= 0; $i--) {
+    $monthKey = date('Y-m', strtotime("-$i months"));
+    $trend_labels[] = date('M Y', strtotime($monthKey . '-01'));
+    $trend_menunggu[$monthKey] = 0;
+    $trend_disetujui[$monthKey] = 0;
+    $trend_ditolak[$monthKey] = 0;
+    $trend_selesai[$monthKey] = 0;
+}
+$q_trend = mysqli_query($config, "
+    SELECT DATE_FORMAT(tanggal_ajuan, '%Y-%m') AS bulan, status, COUNT(*) AS total
+    FROM tb_pengajuan_dokumen
+    WHERE id_user = '$id_user'
+      AND tanggal_ajuan >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m-01')
+    GROUP BY DATE_FORMAT(tanggal_ajuan, '%Y-%m'), status
+");
+while ($row = mysqli_fetch_assoc($q_trend)) {
+    if (!isset($trend_menunggu[$row['bulan']])) {
+        continue;
+    }
+    if ($row['status'] === 'Menunggu Verifikasi') $trend_menunggu[$row['bulan']] = (int) $row['total'];
+    if ($row['status'] === 'Disetujui') $trend_disetujui[$row['bulan']] = (int) $row['total'];
+    if ($row['status'] === 'Ditolak') $trend_ditolak[$row['bulan']] = (int) $row['total'];
+    if ($row['status'] === 'Selesai') $trend_selesai[$row['bulan']] = (int) $row['total'];
 }
 ?>
 
@@ -99,6 +139,23 @@ $(document).ready(function() {
             enabled: false
         }
     });
+
+    Highcharts.chart('trendChart', {
+        chart: { type: 'line' },
+        title: { text: 'Tren Pengajuan Saya 6 Bulan Terakhir' },
+        xAxis: { categories: <?php echo json_encode($trend_labels); ?> },
+        yAxis: {
+            title: { text: 'Jumlah Dokumen' },
+            allowDecimals: false
+        },
+        series: [
+            { name: 'Menunggu', data: <?php echo json_encode(array_values($trend_menunggu)); ?>, color: '#ffc107' },
+            { name: 'Disetujui', data: <?php echo json_encode(array_values($trend_disetujui)); ?>, color: '#28a745' },
+            { name: 'Ditolak', data: <?php echo json_encode(array_values($trend_ditolak)); ?>, color: '#dc3545' },
+            { name: 'Selesai', data: <?php echo json_encode(array_values($trend_selesai)); ?>, color: '#007bff' }
+        ],
+        credits: { enabled: false }
+    });
 });
 </script>
 
@@ -108,7 +165,7 @@ $(document).ready(function() {
 
         <!-- Statistik Card -->
         <div class="row">
-            <div class="col-lg-3 col-6">
+            <div class="col-lg col-md-4 col-6">
                 <div class="small-box bg-warning">
                     <div class="inner">
                         <h3><?= $menunggu ?></h3>
@@ -119,7 +176,7 @@ $(document).ready(function() {
                 </div>
             </div>
 
-            <div class="col-lg-3 col-6">
+            <div class="col-lg col-md-4 col-6">
                 <div class="small-box bg-success">
                     <div class="inner">
                         <h3><?= $disetujui ?></h3>
@@ -130,7 +187,7 @@ $(document).ready(function() {
                 </div>
             </div>
 
-            <div class="col-lg-3 col-6">
+            <div class="col-lg col-md-4 col-6">
                 <div class="small-box bg-danger">
                     <div class="inner">
                         <h3><?= $ditolak ?></h3>
@@ -141,7 +198,7 @@ $(document).ready(function() {
                 </div>
             </div>
 
-            <div class="col-lg-3 col-6">
+            <div class="col-lg col-md-4 col-6">
                 <div class="small-box bg-primary">
                     <div class="inner">
                         <h3><?= $selesai ?></h3>
@@ -151,8 +208,28 @@ $(document).ready(function() {
                     <a href="main_pokja.php?unit=pengesahan" class="small-box-footer">Lihat Detail <i class="fas fa-arrow-circle-right"></i></a>
                 </div>
             </div>
+
+            <div class="col-lg col-md-4 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3><?= $selesai_bulan_ini ?></h3>
+                        <p>Selesai Bulan Ini</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-calendar-check"></i></div>
+                    <a href="main_pokja.php?unit=pengesahan" class="small-box-footer">Lihat Detail <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
         </div>
         <!-- /.row statistik -->
+
+        <div class="card card-default mt-4">
+            <div class="card-header bg-dark">
+                <h3 class="card-title text-white"><i class="fas fa-chart-line"></i> Tren Pengajuan Saya</h3>
+            </div>
+            <div class="card-body">
+                <div id="trendChart" style="width:100%; height:360px;"></div>
+            </div>
+        </div>
 
         <!-- Dua Tabel: Diterima & Ditolak -->
         <div class="row mt-4">

@@ -1,5 +1,6 @@
 <?php
 require_once("../config/koneksi.php");
+require_once("../config/upload_helper.php");
 
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
@@ -26,34 +27,34 @@ if (isset($_GET['id_pengajuan'])) {
 
 // --- PROSES EDIT UPLOAD PDF (TANPA EMAIL) --- //
 if (isset($_POST['edit_upload_pdf'])) {
-    $file_tmp = $_FILES['file_pdf']['tmp_name'];
-    $file_name = $_FILES['file_pdf']['name'];
-    $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+    $upload = app_store_uploaded_file(
+        $_FILES['file_pdf'] ?? null,
+        '../assets/upload/draft_word/',
+        'dokumen_final_' . $id_pengajuan,
+        ['pdf'],
+        ['application/pdf', 'application/octet-stream'],
+        15 * 1024 * 1024
+    );
 
-    if ($file_ext != 'pdf') {
-        echo "<script>alert('Hanya file PDF yang diperbolehkan!');</script>";
+    if (!$upload['ok']) {
+        echo "<script>alert('" . addslashes($upload['message']) . "');</script>";
     } else {
-        $new_name = 'dokumen_final_' . time() . '.pdf';
-        $upload_path = '../assets/upload/draft_word/' . $new_name;
+        $new_name = $upload['filename'];
 
         // Hapus file lama jika ada
         if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
             unlink('../assets/upload/draft_word/' . $data['file_draft']);
         }
 
-        if (move_uploaded_file($file_tmp, $upload_path)) {
-            // Update database
-            mysqli_query($config, "
-                UPDATE tb_pengajuan_dokumen
-                SET file_draft='$new_name'
-                WHERE id_pengajuan='$id_pengajuan'
-            ");
+        // Update database
+        mysqli_query($config, "
+            UPDATE tb_pengajuan_dokumen
+            SET file_draft='$new_name', file_final='$new_name'
+            WHERE id_pengajuan='$id_pengajuan'
+        ");
 
-            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=File PDF berhasil diupdate!');
-            exit;
-        } else {
-            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Gagal mengupload file!');
-        }
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=File PDF berhasil diupdate!');
+        exit;
     }
 }
 ?>
@@ -69,7 +70,7 @@ if (isset($_POST['edit_upload_pdf'])) {
                 <h3 class="card-title">Informasi Pengesahan Dokumen</h3>
                 <div class="ml-auto" style="position:absolute; right:24px; top:9px;">
                     <?php if (isset($_GET['edit'])): ?>
-                        <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2">
+                        <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2" onsubmit="return confirm('Update file PDF final dokumen ini?');">
                             <input type="file" name="file_pdf" accept="application/pdf" required>
                             <button type="submit" name="edit_upload_pdf" class="btn btn-sm btn-warning">
                                 <i class="fas fa-upload"></i> Update PDF

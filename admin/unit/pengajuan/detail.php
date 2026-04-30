@@ -1,6 +1,8 @@
 <?php
 require_once("../config/koneksi.php");
 require_once("../config/notifikasi.php");
+require_once("../config/upload_helper.php");
+require_once("../config/wa_helper.php");
 
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
@@ -23,26 +25,29 @@ if (isset($_GET['id_pengajuan'])) {
 }
 
 if (isset($_POST['upload_pdf'])) {
-    $file_tmp = $_FILES['file_pdf']['tmp_name'];
-    $file_name = $_FILES['file_pdf']['name'];
-    $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+    $upload = app_store_uploaded_file(
+        $_FILES['file_pdf'] ?? null,
+        '../assets/upload/draft_word/',
+        'dokumen_final_' . $id_pengajuan,
+        ['pdf'],
+        ['application/pdf', 'application/octet-stream'],
+        15 * 1024 * 1024
+    );
 
-    if ($file_ext != 'pdf') {
-        echo "<script>alert('Hanya file PDF yang diperbolehkan!');</script>";
+    if (!$upload['ok']) {
+        echo "<script>alert('" . addslashes($upload['message']) . "');</script>";
     } else {
-        $new_name = 'dokumen_final_' . time() . '.pdf';
-        $upload_path = '../assets/upload/draft_word/' . $new_name;
+        $new_name = $upload['filename'];
 
         if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
             unlink('../assets/upload/draft_word/' . $data['file_draft']);
         }
 
-        if (move_uploaded_file($file_tmp, $upload_path)) {
-            mysqli_query($config, "
-                UPDATE tb_pengajuan_dokumen
-                SET file_draft='$new_name', file_final='$new_name', status='Selesai'
-                WHERE id_pengajuan='$id_pengajuan'
-            ");
+        mysqli_query($config, "
+            UPDATE tb_pengajuan_dokumen
+            SET file_draft='$new_name', file_final='$new_name', status='Selesai'
+            WHERE id_pengajuan='$id_pengajuan'
+        ");
 
             $pokjaLink = app_base_url() . '/pokja/main_pokja.php?unit=pengesahan';
             $emailSubject = 'Dokumen Final Siap Diunduh - ' . $data['judul_dokumen'];
@@ -72,11 +77,20 @@ if (isset($_POST['upload_pdf'])) {
                 . "Link: " . htmlspecialchars($pokjaLink);
             app_send_telegram($telegramMessage);
 
-            header('Location: main_admin.php?unit=pengajuan&msg=File PDF berhasil diupload, status SELESAI, email dan Telegram sudah diproses!');
-            exit;
-        } else {
-            header('Location: main_admin.php?unit=detail_pengajuan&err=Gagal mengupload file!');
+        $data['file_draft'] = $new_name;
+        $waUrl = '';
+        if (!empty($data['no_tlp'])) {
+            $waUrl = app_wa_url($data['no_tlp'], app_wa_selesai_message($data));
         }
+        $redirectUrl = 'main_admin.php?unit=pengajuan&msg=File PDF berhasil diupload, status SELESAI, email, Telegram, dan WhatsApp sudah diproses!';
+        echo "<script>";
+        if ($waUrl !== '') {
+            echo "var waWindow = window.open('', 'waNotifyWindow');";
+            echo "if (waWindow) { waWindow.location.href = " . json_encode($waUrl) . "; }";
+        }
+        echo "window.location.href = " . json_encode($redirectUrl) . ";";
+        echo "</script>";
+        exit;
     }
 }
 
@@ -153,7 +167,7 @@ function getBadgeClass($status) {
                                     <i class="fas fa-times"></i> Tolak
                                 </a>
                             <?php elseif ($data['status'] == 'Disetujui'): ?>
-                                <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2">
+                                <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2" onsubmit="return prepareWaSubmit('Upload PDF final dan ubah status menjadi Selesai? WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.');">
                                     <input type="hidden" name="id_pengajuan" value="<?= $data['id_pengajuan']; ?>">
                                     <input type="file" name="file_pdf" accept="application/pdf" required>
                                     <button type="submit" name="upload_pdf" class="btn btn-sm btn-primary">
@@ -230,6 +244,15 @@ function getBadgeClass($status) {
 
 
     <script>
+function prepareWaSubmit(message) {
+    if (!confirm(message)) {
+        return false;
+    }
+
+    window.open('about:blank', 'waNotifyWindow');
+    return true;
+}
+
 function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJenis, tanggalDokumen) {
           if (!noTel || noTel.trim() === '') {
               alert('Nomor telepon tidak tersedia untuk pengajuan ini.');

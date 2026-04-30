@@ -15,6 +15,66 @@
 	</div>
 </section>
 
+<style>
+	.pengesahan-table-wrap {
+		overflow-x: auto;
+		overflow-y: hidden;
+		width: 100%;
+		border: 1px solid #d9dee3;
+		border-radius: 6px;
+		background: #fff;
+	}
+
+	.pengesahan-table-wrap::-webkit-scrollbar,
+	.pengesahan-table-wrap .dataTables_scrollBody::-webkit-scrollbar {
+		height: 10px;
+	}
+
+	.pengesahan-table-wrap::-webkit-scrollbar-track,
+	.pengesahan-table-wrap .dataTables_scrollBody::-webkit-scrollbar-track {
+		background: #eef1f4;
+		border-radius: 999px;
+	}
+
+	.pengesahan-table-wrap::-webkit-scrollbar-thumb,
+	.pengesahan-table-wrap .dataTables_scrollBody::-webkit-scrollbar-thumb {
+		background: #8c98a4;
+		border-radius: 999px;
+	}
+
+	#pengesahanTable {
+		min-width: 1060px;
+		margin-bottom: 0 !important;
+	}
+
+	#pengesahanTable th,
+	#pengesahanTable td {
+		vertical-align: middle;
+		white-space: nowrap;
+	}
+
+	#pengesahanTable td:nth-child(2),
+	#pengesahanTable td:nth-child(4) {
+		min-width: 220px;
+		white-space: normal;
+		text-align: left;
+	}
+
+	#pengesahanTable td:nth-child(7),
+	#pengesahanTable td:nth-child(8) {
+		min-width: 130px;
+	}
+
+	#pengesahanTable td .btn {
+		margin: 2px;
+	}
+
+	div.dataTables_wrapper div.dataTables_length,
+	div.dataTables_wrapper div.dataTables_filter {
+		margin-bottom: .75rem;
+	}
+</style>
+
 <!-- Main content -->
 <section class="content">
 	<div class="container-fluid">
@@ -53,80 +113,109 @@
 					</button>
 				</form>
 
-				<table id="example2" class="table table-bordered table-striped text-center">
-					<thead style="background:rgb(0, 102, 51, 1); color: white;">
-						<tr>
-							<th>No</th>
-							<th style="font-size: 14px;" width="120" responsive>Standard EP</th>
-							<th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
-							<th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
-							<th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
-							<th style="font-size: 14px;" width="120" responsive>Status</th>
-							<th style="font-size: 14px;" width="120" responsive>File PDF Final</th>
-							<th>Aksi</th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php
-						$no = 1;
-						$id_user = $_SESSION['id_user'];
+				<div class="pengesahan-table-wrap">
+					<table id="pengesahanTable" class="table table-bordered table-striped text-center">
+						<thead style="background:rgb(0, 102, 51, 1); color: white;">
+							<tr>
+								<th>No</th>
+								<th style="font-size: 14px;" width="120" responsive>Standard EP</th>
+								<th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
+								<th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
+								<th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
+								<th style="font-size: 14px;" width="120" responsive>Status</th>
+								<th style="font-size: 14px;" width="120" responsive>File PDF Final</th>
+								<th>Aksi</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php
+							$no = 1;
+							$id_user = $_SESSION['id_user'];
 
-						// Ambil hanya dokumen yang sudah selesai
-						$query_str = "
-							SELECT p.*, j.nama_jenis
-							FROM tb_pengajuan_dokumen p
-							LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
-							WHERE p.id_user = '$id_user' AND p.status = 'Selesai'";
+							// Ambil hanya dokumen yang sudah selesai
+							$query_str = "
+								SELECT p.*, j.nama_jenis
+								FROM tb_pengajuan_dokumen p
+								LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
+								WHERE p.id_user = '$id_user' AND p.status = 'Selesai'";
 
-						// Tambahkan filter jenis dokumen jika dipilih
-						if (!empty($id_jenis_filter)) {
-							$query_str .= " AND p.id_jenis = '$id_jenis_filter'";
-						}
-
-						$query_str .= " ORDER BY p.id_pengajuan DESC";
-
-						$query = mysqli_query($config, $query_str);
-
-						if (mysqli_num_rows($query) > 0) {
-							while ($row = mysqli_fetch_assoc($query)) {
-								$tgl_dok = date('d-m-Y', strtotime($row['tanggal_dokumen']));
-								$tgl_ajuan = date('d-m-Y', strtotime($row['tanggal_ajuan']));
-
-								echo "<tr>
-									<td>{$no}</td>
-									<td>{$row['elemen_penilaian']}</td>
-									<td>{$row['nama_jenis']}</td>
-									<td>{$row['judul_dokumen']}</td>
-									<td>{$tgl_ajuan}</td>
-									<td><span class='badge badge-primary'>Selesai</span></td>
-									<td>";
-
-								if (!empty($row['file_draft'])) {
-									echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' 
-											target='_blank' class='btn btn-sm btn-success'>
-											<i class='fas fa-file-pdf'></i> Download
-										  </a>";
-								} else {
-									echo "-";
-								}
-
-								echo "</td>
-									<td>
-										<a href='main_pokja.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}' 
-											class='btn btn-sm btn-info'>
-											<i class='fas fa-eye'></i> Detail
-										</a>
-									</td>
-								</tr>";
-								$no++;
+							// Tambahkan filter jenis dokumen jika dipilih
+							if (!empty($id_jenis_filter)) {
+								$query_str .= " AND p.id_jenis = '$id_jenis_filter'";
 							}
-						} else {
-							echo "<tr><td colspan='8'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
-						}
-						?>
-					</tbody>
-				</table>
+
+							$query_str .= " ORDER BY p.id_pengajuan DESC";
+
+							$query = mysqli_query($config, $query_str);
+
+							if (mysqli_num_rows($query) > 0) {
+								while ($row = mysqli_fetch_assoc($query)) {
+									$tgl_dok = date('d-m-Y', strtotime($row['tanggal_dokumen']));
+									$tgl_ajuan = date('d-m-Y', strtotime($row['tanggal_ajuan']));
+
+									echo "<tr>
+										<td>{$no}</td>
+										<td>{$row['elemen_penilaian']}</td>
+										<td>{$row['nama_jenis']}</td>
+										<td>{$row['judul_dokumen']}</td>
+										<td>{$tgl_ajuan}</td>
+										<td><span class='badge badge-primary'>Selesai</span></td>
+										<td>";
+
+									if (!empty($row['file_draft'])) {
+										echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' 
+												target='_blank' class='btn btn-sm btn-success' title='Download PDF final'>
+												<i class='fas fa-file-pdf'></i> Download
+											</a>";
+									} else {
+										echo "-";
+									}
+
+									echo "</td>
+										<td>
+											<a href='main_pokja.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}' 
+												class='btn btn-sm btn-info' title='Lihat detail'>
+												<i class='fas fa-eye'></i> Detail
+											</a>
+										</td>
+									</tr>";
+									$no++;
+								}
+							} else {
+								echo "<tr><td colspan='8'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
+							}
+							?>
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	</div>
 </section>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		if (window.jQuery && $.fn.DataTable && !$.fn.DataTable.isDataTable('#pengesahanTable')) {
+			$('#pengesahanTable').DataTable({
+				paging: true,
+				lengthChange: true,
+				searching: true,
+				ordering: true,
+				info: true,
+				autoWidth: false,
+				scrollX: true,
+				responsive: false,
+				columnDefs: [
+					{ width: '60px', targets: 0 },
+					{ width: '230px', targets: 1 },
+					{ width: '150px', targets: 2 },
+					{ width: '230px', targets: 3 },
+					{ width: '115px', targets: 4 },
+					{ width: '100px', targets: 5 },
+					{ width: '145px', targets: 6 },
+					{ width: '130px', targets: 7, orderable: false }
+				]
+			});
+		}
+	});
+</script>

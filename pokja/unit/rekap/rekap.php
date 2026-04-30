@@ -95,7 +95,7 @@ $data = mysqli_query($config, $query);
                     </a>
                 </form>
 
-                <table id="example2" class="table table-bordered table-striped text-center">
+                <table id="example2" class="table table-bordered table-striped text-center app-table">
                     <thead style="background:rgb(0, 0, 0, 1); color: white;">
                         <tr>
                             <th>No</th>
@@ -116,10 +116,10 @@ $data = mysqli_query($config, $query);
                                 echo "<tr>
                                         <td>{$no}</td>
                                         <td>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
-                                        <td>{$row['elemen_penilaian']}</td>
+                                        <td class='text-long'>{$row['elemen_penilaian']}</td>
                                         <td>" . (!empty($row['nomor_surat']) ? $row['nomor_surat'] : '-') . "</td>
                                         <td>{$row['nama_jenis']}</td>
-                                        <td>{$row['judul_dokumen']}</td>
+                                        <td class='text-long'>{$row['judul_dokumen']}</td>
                                         <td>" . (!empty($row['tanggal_disetujui']) ? date('d-m-Y', strtotime($row['tanggal_disetujui'])) : '-') . "</td>
                                         <td><span class='badge badge-";
                                 switch ($row['status']) {

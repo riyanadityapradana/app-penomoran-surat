@@ -47,6 +47,7 @@
 		<link rel="stylesheet" href="../assets/plugins/toastr/toastr.css">
 		<!-- Theme style -->
 		<link rel="stylesheet" href="../assets/dist/css/adminlte.min.css">
+		<link rel="stylesheet" href="../assets/dist/css/app-custom.css">
 		<!-- overlayScrollbars -->
 		<link rel="stylesheet" href="../assets/plugins/overlayScrollbars/css/OverlayScrollbars.min.css">
 		<!-- Daterange picker -->
@@ -384,7 +385,8 @@
 					"ordering": true,
 					"info": true,
 					"autoWidth": false,
-					"responsive": true,
+					"responsive": false,
+					"scrollX": true,
 				});
 				// Toastr notification
 				<?php if(isset($_GET['msg'])): ?>

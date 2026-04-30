@@ -35,7 +35,7 @@
 				<div class="alert alert-info">
 					<i class="fas fa-info-circle"></i> <strong>Catatan:</strong> Jika status pengajuan masih <b>'Menunggu Verifikasi' atau 'Disetujui'</b>, maka data dapat diubah.
 				</div>
-				<table id="example2" class="table table-bordered table-striped text-center">
+				<table id="example2" class="table table-bordered table-striped text-center app-table">
 					<thead style="background:rgb(0, 0, 0, 1); color: white;">
 						<tr>
 							<th>No</th>
@@ -69,9 +69,9 @@
 
 								echo "<tr>
 									<td>{$no}</td>
-									<td>{$row['elemen_penilaian']}</td>
+									<td class='text-long'>{$row['elemen_penilaian']}</td>
 									<td>{$row['nama_jenis']}</td>
-									<td>{$row['judul_dokumen']}</td>
+									<td class='text-long'>{$row['judul_dokumen']}</td>
 									<td>{$tgl_ajuan}</td>
 									<td>";
 

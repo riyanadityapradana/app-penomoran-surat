@@ -96,7 +96,7 @@ $query = mysqli_query($config, "
     </div>
     <?php endif; ?>
 
-    <table id="example2" class="table table-bordered table-striped">
+    <table id="example2" class="table table-bordered table-striped app-table">
                     <thead style="background:rgb(0, 0, 0, 1)">
                         <tr class="text-center">
                             <th style="color:white;">No</th>
@@ -118,7 +118,7 @@ $query = mysqli_query($config, "
                                         <td class='text-center'>{$no}</td>
                                         <td class='text-center'>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
                                         <td class='text-center'>{$row['kode_pokja']}</td>
-                                        <td>{$row['nama_jenis']}</td>
+                                        <td class='text-long'>{$row['nama_jenis']}</td>
                                         <td class='text-center'>";
                                         if (!empty($row['nomor_surat'])) {
                                             echo "<span class='badge badge-defauld' style='color: black; font-weight: bold;'>" . htmlspecialchars($row['nomor_surat']) . "</span>";
@@ -141,7 +141,7 @@ $query = mysqli_query($config, "
                                 }
 								
 								echo "</td>
-									<td>";
+									<td class='text-center'>";
 								if (!empty($row['file_draft'])) {
 									echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' 
 											target='_blank' class='btn btn-sm btn-info'>

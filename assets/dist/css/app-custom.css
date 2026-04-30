@@ -1,0 +1,71 @@
+.app-table-wrap,
+div.dataTables_scroll {
+    border: 1px solid #d9dee3;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.app-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.app-table-wrap::-webkit-scrollbar,
+div.dataTables_scrollBody::-webkit-scrollbar {
+    height: 10px;
+}
+
+.app-table-wrap::-webkit-scrollbar-track,
+div.dataTables_scrollBody::-webkit-scrollbar-track {
+    background: #eef1f4;
+    border-radius: 999px;
+}
+
+.app-table-wrap::-webkit-scrollbar-thumb,
+div.dataTables_scrollBody::-webkit-scrollbar-thumb {
+    background: #8c98a4;
+    border-radius: 999px;
+}
+
+.app-table {
+    min-width: 980px;
+    margin-bottom: 0 !important;
+}
+
+.app-table th,
+.app-table td {
+    vertical-align: middle !important;
+    white-space: nowrap;
+}
+
+.app-table .text-long,
+.app-table td.text-long {
+    min-width: 220px;
+    white-space: normal;
+}
+
+.app-table .btn {
+    margin: 2px;
+}
+
+div.dataTables_wrapper div.dataTables_length,
+div.dataTables_wrapper div.dataTables_filter {
+    margin-bottom: .75rem;
+}
+
+.required-label::after {
+    color: #dc3545;
+    content: " *";
+}
+
+.upload-preview {
+    border: 1px dashed #9aa5b1;
+    border-radius: 6px;
+    color: #495057;
+    display: none;
+    margin-top: .5rem;
+    padding: .65rem .75rem;
+    background: #f8fafc;
+}

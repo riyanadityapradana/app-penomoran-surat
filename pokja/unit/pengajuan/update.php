@@ -1,4 +1,6 @@
 <?php
+require_once("../config/upload_helper.php");
+
 if (!isset($_SESSION['id_user'])) {
     echo "<script>alert('Silakan login terlebih dahulu!');window.location='../login.php';</script>";
     exit;
@@ -43,28 +45,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $file_draft = $file_draft_lama;
 
-    if (!empty($_FILES['file_draft']['name'])) {
-        $namaFile = $_FILES['file_draft']['name'];
-        $tmpFile = $_FILES['file_draft']['tmp_name'];
-        $ukuran = $_FILES['file_draft']['size'];
-        $ext = strtolower(pathinfo($namaFile, PATHINFO_EXTENSION));
+    if ($hasNoTlpColumn && !app_validate_phone_id($no_tel)) {
+        echo "<script>alert('Nomor telepon tidak valid. Gunakan format 08xxxxxxxxxx atau 62xxxxxxxxxx.');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
+        exit;
+    }
 
-        $allowed = ['doc', 'docx'];
-        if (!in_array($ext, $allowed)) {
-            echo "<script>alert('Hanya file Word (.doc/.docx) yang diperbolehkan!');</script>";
-        } elseif ($ukuran > 10485760) {
-            echo "<script>alert('Ukuran file maksimal 10MB!');</script>";
+    if (!empty($_FILES['file_draft']['name'])) {
+        $upload = app_store_uploaded_file(
+            $_FILES['file_draft'],
+            '../assets/upload/draft_word/',
+            'draft_' . $_SESSION['id_user'],
+            ['doc', 'docx'],
+            [
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/zip',
+                'application/octet-stream'
+            ],
+            10 * 1024 * 1024
+        );
+
+        if (!$upload['ok']) {
+            echo "<script>alert('" . addslashes($upload['message']) . "');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
+            exit;
         } else {
             if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
                 unlink('../assets/upload/draft_word/' . $data['file_draft']);
             }
 
-            $newName = 'draft_' . time() . '.' . $ext;
-            $tujuan = '../assets/upload/draft_word/' . $newName;
-
-            if (move_uploaded_file($tmpFile, $tujuan)) {
-                $file_draft = $newName;
-            }
+            $file_draft = $upload['filename'];
         }
     }
 
@@ -101,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <h3 class="card-title">Form Edit Pengajuan</h3>
             </div>
 
-            <form method="post" enctype="multipart/form-data">
+            <form method="post" enctype="multipart/form-data" class="js-confirm-submit" data-confirm-message="Simpan perubahan pengajuan ini?">
                 <input type="hidden" name="id_pengajuan" value="<?php echo $data['id_pengajuan']; ?>">
                 <input type="hidden" name="file_draft_lama" value="<?php echo $data['file_draft']; ?>">
 
@@ -109,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="row">
                         <div class="col-sm-6">
                             <div class="form-group">
-                                <label>Standard EP</label>
+                                <label class="required-label">Standard EP</label>
                                 <?php
                                 $current_value = '';
                                 if (!empty($data['elemen_penilaian'])) {
@@ -130,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                         <div class="col-sm-6">
                             <div class="form-group">
-                                <label>Jenis Dokumen</label>
+                                <label class="required-label">Jenis Dokumen</label>
                                 <select name="id_jenis" class="form-control" required>
                                     <option value="">-- Pilih Jenis Dokumen --</option>
                                     <?php
@@ -148,21 +157,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="row">
                         <div class="col-sm-12">
                             <div class="form-group">
-                                <label>Judul Dokumen</label>
+                                <label class="required-label">Judul Dokumen</label>
                                 <input type="text" name="judul_dokumen" class="form-control" value="<?php echo htmlspecialchars($data['judul_dokumen']); ?>" required>
                             </div>
 
                             <div class="form-group">
-                                <label>Tanggal Dokumen</label>
+                                <label class="required-label">Tanggal Dokumen</label>
                                 <input type="date" name="tanggal_dokumen" class="form-control" value="<?php echo $data['tanggal_dokumen']; ?>" required>
                             </div>
 
                             <?php if ($hasNoTlpColumn): ?>
                             <div class="form-group">
-                                <label>Nomor Telepon</label>
+                                <label class="required-label">Nomor Telepon WhatsApp</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-phone"></i></span>
-                                    <input type="text" name="no_telepon" class="form-control" placeholder="Contoh: 08123456789" value="<?php echo htmlspecialchars($data['no_tlp'] ?? ''); ?>" required>
+                                    <input type="text" name="no_telepon" class="form-control js-phone-id" placeholder="Contoh: 08123456789" pattern="(\+?62|0)8[0-9]{8,13}" value="<?php echo htmlspecialchars($data['no_tlp'] ?? ''); ?>" required>
                                 </div>
                                 <small class="form-text text-muted">Masukkan nomor telepon yang dapat dihubungi untuk konfirmasi.</small>
                             </div>
@@ -175,7 +184,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <i class="fas fa-file-word"></i> Lihat File Lama
                                     </a><br>
                                 <?php endif; ?>
-                                <input type="file" name="file_draft" class="form-control-file" accept=".doc,.docx">
+                                <input type="file" name="file_draft" class="form-control-file js-file-preview" data-preview="#draftPreview" accept=".doc,.docx">
+                                <div id="draftPreview" class="upload-preview"></div>
                             </div>
                         </div>
                     </div>
@@ -194,3 +204,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </div>
     <br><br>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.js-file-preview').forEach(function(input) {
+        input.addEventListener('change', function() {
+            var target = document.querySelector(input.dataset.preview);
+            if (!target || !input.files.length) return;
+            var file = input.files[0];
+            target.style.display = 'block';
+            target.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+        });
+    });
+
+    document.querySelectorAll('.js-phone-id').forEach(function(input) {
+        input.addEventListener('input', function() {
+            input.value = input.value.replace(/[^\d+]/g, '');
+        });
+    });
+
+    document.querySelectorAll('.js-confirm-submit').forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            if (!confirm(form.dataset.confirmMessage || 'Simpan perubahan ini?')) {
+                event.preventDefault();
+            }
+        });
+    });
+});
+</script>

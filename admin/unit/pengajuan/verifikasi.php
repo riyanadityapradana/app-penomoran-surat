@@ -1,6 +1,7 @@
 <?php
 require_once("../config/koneksi.php");
 require_once("../config/notifikasi.php");
+require_once("../config/wa_helper.php");
 
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
@@ -97,7 +98,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
             . "Link: " . htmlspecialchars($pokjaLink);
         app_send_telegram($telegramMessage);
 
-        header('Location: main_admin.php?unit=pengajuan&msg=Pengajuan berhasil diverifikasi, email dan Telegram sudah diproses!');
+        $waUrl = '';
+        if (!empty($data['no_tlp'])) {
+            $waUrl = app_wa_url($data['no_tlp'], app_wa_verifikasi_message($data, $nomor_surat));
+        }
+        $redirectUrl = 'main_admin.php?unit=pengajuan&msg=Pengajuan berhasil diverifikasi, email, Telegram, dan WhatsApp sudah diproses!';
+        echo "<script>";
+        if ($waUrl !== '') {
+            echo "var waWindow = window.open('', 'waNotifyWindow');";
+            echo "if (waWindow) { waWindow.location.href = " . json_encode($waUrl) . "; }";
+        }
+        echo "window.location.href = " . json_encode($redirectUrl) . ";";
+        echo "</script>";
         exit;
     } else {
         echo "<script>alert('Gagal memverifikasi pengajuan: " . mysqli_error($config) . "');</script>";
@@ -116,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
                 <h3 class="card-title">Detail Pengajuan dari Pokja</h3>
             </div>
 
-            <form method="post">
+            <form method="post" onsubmit="return prepareWaSubmit('Setujui pengajuan ini dan buat nomor surat sekarang? WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.');">
                 <div class="card-body">
                     <div class="row">
                         <div class="col-sm-12">
@@ -161,3 +173,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
         </div>
     </div>
 </section>
+
+<script>
+function prepareWaSubmit(message) {
+    if (!confirm(message)) {
+        return false;
+    }
+
+    window.open('about:blank', 'waNotifyWindow');
+    return true;
+}
+</script>

@@ -1,6 +1,7 @@
 <?php
 require_once("../config/koneksi.php");
 require_once("../config/notifikasi.php");
+require_once("../config/upload_helper.php");
 
 $user_id = $_SESSION['id_user'];
 $query_user = mysqli_query($config, "SELECT kode_pokja FROM tb_user WHERE id_user = '$user_id'");
@@ -22,37 +23,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $elemen_penilaian = $kode_pokja . '-' . $elemen_penilaian_input;
     $status = 'Menunggu Verifikasi';
 
-    if (!isset($_FILES['file_draft']) || $_FILES['file_draft']['error'] !== UPLOAD_ERR_OK) {
-        echo "<script>alert('Error: Tidak ada file yang dipilih atau terjadi kesalahan upload!');window.location='main_pokja.php?unit=create_pengajuan';</script>";
+    if ($hasNoTlpColumn && !app_validate_phone_id($no_tel)) {
+        echo "<script>alert('Nomor telepon tidak valid. Gunakan format 08xxxxxxxxxx atau 62xxxxxxxxxx.');window.location='main_pokja.php?unit=create_pengajuan';</script>";
         exit;
     }
 
-    $allowed_ext = ['doc', 'docx'];
-    $file_name = $_FILES['file_draft']['name'];
-    $file_tmp = $_FILES['file_draft']['tmp_name'];
-    $file_size = $_FILES['file_draft']['size'];
-    $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
     $upload_dir = '../assets/upload/draft_word/';
+    $upload = app_store_uploaded_file(
+        $_FILES['file_draft'] ?? null,
+        $upload_dir,
+        'draft_' . $id_user,
+        ['doc', 'docx'],
+        [
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/zip',
+            'application/octet-stream'
+        ],
+        10 * 1024 * 1024
+    );
 
-    if (!in_array($file_ext, $allowed_ext)) {
-        echo "<script>alert('Format file tidak valid! Hanya diperbolehkan .doc atau .docx.');window.location='main_pokja.php?unit=create_pengajuan';</script>";
+    if (!$upload['ok']) {
+        echo "<script>alert('" . addslashes($upload['message']) . "');window.location='main_pokja.php?unit=create_pengajuan';</script>";
         exit;
     }
 
-    if ($file_size > (10 * 1024 * 1024)) {
-        echo "<script>alert('Ukuran file terlalu besar! Maksimal 10MB.');window.location='main_pokja.php?unit=create_pengajuan';</script>";
-        exit;
-    }
+    $new_filename = $upload['filename'];
+    $full_path = $upload['path'];
 
-    if (!is_dir($upload_dir) || !is_writable($upload_dir)) {
-        echo "<script>alert('Folder upload bermasalah. Hubungi administrator.');window.location='main_pokja.php?unit=create_pengajuan';</script>";
-        exit;
-    }
-
-    $new_filename = 'draft_' . time() . '_' . $id_user . '.' . $file_ext;
-    $full_path = $upload_dir . $new_filename;
-
-    if (move_uploaded_file($file_tmp, $full_path)) {
+    if (!empty($new_filename)) {
         $columns = ['id_user', 'id_jenis', 'judul_dokumen', 'file_draft', 'tanggal_dokumen', 'tanggal_ajuan', 'catatan', 'elemen_penilaian', 'status'];
         $values = [
             "'$id_user'",
@@ -130,18 +129,46 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </div>
 </section>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.js-file-preview').forEach(function(input) {
+        input.addEventListener('change', function() {
+            var target = document.querySelector(input.dataset.preview);
+            if (!target || !input.files.length) return;
+            var file = input.files[0];
+            target.style.display = 'block';
+            target.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+        });
+    });
+
+    document.querySelectorAll('.js-phone-id').forEach(function(input) {
+        input.addEventListener('input', function() {
+            input.value = input.value.replace(/[^\d+]/g, '');
+        });
+    });
+
+    document.querySelectorAll('.js-confirm-submit').forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            if (!confirm(form.dataset.confirmMessage || 'Simpan data ini?')) {
+                event.preventDefault();
+            }
+        });
+    });
+});
+</script>
+
 <section class="content">
     <div class="container-fluid">
         <div class="card card-default">
             <div class="card-header">
                 <h3 class="card-title">Silakan Input Data Pengajuan Dokumen</h3>
             </div>
-            <form method="post" enctype="multipart/form-data">
+            <form method="post" enctype="multipart/form-data" class="js-confirm-submit" data-confirm-message="Kirim pengajuan dokumen ini ke admin? Pastikan data dan file draft sudah benar.">
                 <div class="card-body">
                     <div class="row">
                         <div class="col-sm-6">
                             <div class="form-group">
-                                <label>Standard EP</label>
+                                <label class="required-label">Standard EP</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-tags"></i></span>
                                     <input type="text" class="form-control" value="<?php echo $kode_pokja; ?>" readonly style="background-color: #e9ecef; font-weight: bold;">
@@ -153,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                         <div class="col-sm-6">
                             <div class="form-group">
-                                <label>Jenis Dokumen</label>
+                                <label class="required-label">Jenis Dokumen</label>
                                 <input type="hidden" name="id_user" class="form-control" value="<?php echo $_SESSION['id_user']; ?>" readonly>
                                 <select name="id_jenis" class="form-control select2" required>
                                     <option value="">-- Pilih Jenis Dokumen --</option>
@@ -169,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
 
                     <div class="form-group">
-                        <label>Judul Dokumen</label>
+                        <label class="required-label">Judul Dokumen</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-file-signature"></i></span>
                             <input type="text" name="judul_dokumen" class="form-control" placeholder="Contoh: Rencana Kerja Tahunan - Revisi 2025" required>
@@ -177,21 +204,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
 
                     <div class="form-group">
-                        <label>Tanggal Dokumen</label>
+                        <label class="required-label">Tanggal Dokumen</label>
                         <input type="date" name="tanggal_dokumen" class="form-control" value="<?= date('Y-m-d') ?>" required>
                     </div>
 
                     <div class="form-group">
-                        <label>File Draft (Harus Format : Word)</label>
-                        <input type="file" name="file_draft" accept=".doc,.docx" class="form-control" required>
+                        <label class="required-label">File Draft (Word, maksimal 10MB)</label>
+                        <input type="file" name="file_draft" accept=".doc,.docx" class="form-control js-file-preview" data-preview="#draftPreview" required>
+                        <div id="draftPreview" class="upload-preview"></div>
                     </div>
 
                     <?php if ($hasNoTlpColumn): ?>
                     <div class="form-group">
-                        <label>Nomor Telepon</label>
+                        <label class="required-label">Nomor Telepon WhatsApp</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-phone"></i></span>
-                            <input type="text" name="no_telepon" class="form-control" placeholder="Contoh: 08123456789" required>
+                            <input type="text" name="no_telepon" class="form-control js-phone-id" placeholder="Contoh: 08123456789" pattern="(\+?62|0)8[0-9]{8,13}" required>
                         </div>
                         <small class="form-text text-muted">Masukkan nomor telepon yang dapat dihubungi untuk konfirmasi.</small>
                     </div>
