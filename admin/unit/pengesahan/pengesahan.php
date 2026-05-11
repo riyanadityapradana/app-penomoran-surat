@@ -135,6 +135,17 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 		min-height: 430px;
 	}
 
+	.pengesahan-chart-note {
+		margin-top: .75rem;
+		font-size: .9rem;
+		color: #4d5965;
+	}
+
+	.pengesahan-chart-note ul {
+		margin: .35rem 0 0 1.1rem;
+		padding: 0;
+	}
+
 	@media (max-width: 991.98px) {
 		.pengesahan-chart-wrap {
 			margin-top: 1.5rem;
@@ -192,24 +203,65 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 				// Data untuk chart pengesahan
 				$chart_labels_pengesahan = [];
 				$chart_data_pengesahan = [];
+				$chart_details_pengesahan = [];
+				$chart_group_notes_pengesahan = [];
 				$where_chart = "WHERE u.level = 'Pokja'";
-				if (isset($_GET['kode_pokja']) && $_GET['kode_pokja'] != '') {
+				$is_filter_pokja = isset($_GET['kode_pokja']) && $_GET['kode_pokja'] != '';
+				if ($is_filter_pokja) {
 					$kode_pokja = mysqli_real_escape_string($config, $_GET['kode_pokja']);
 					$where_chart .= " AND u.id_user = '$kode_pokja'";
+					$q_chart_pengesahan = mysqli_query($config, "
+						SELECT
+							u.kode_pokja,
+							u.nama_lengkap,
+							COUNT(p.id_pengajuan) AS total_pengesahan
+						FROM tb_user u
+						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'
+						$where_chart
+						GROUP BY u.id_user
+						ORDER BY total_pengesahan DESC
+					");
+				} else {
+					$q_chart_pengesahan = mysqli_query($config, "
+						SELECT
+							u.kode_pokja,
+							u.nama_lengkap,
+							COUNT(p.id_pengajuan) AS total_pengesahan
+						FROM tb_user u
+						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'
+						$where_chart
+						GROUP BY u.id_user
+						ORDER BY u.kode_pokja ASC, u.nama_lengkap ASC
+					");
 				}
-				$q_chart_pengesahan = mysqli_query($config, "
-					SELECT
-						u.nama_lengkap,
-						COUNT(p.id_pengajuan) AS total_pengesahan
-					FROM tb_user u
-					LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'
-					$where_chart
-					GROUP BY u.id_user
-					ORDER BY total_pengesahan DESC
-				");
+
+				$chart_grouped_pengesahan = [];
 				while ($row = mysqli_fetch_assoc($q_chart_pengesahan)) {
-					$chart_labels_pengesahan[] = $row['nama_lengkap'];
-					$chart_data_pengesahan[] = (int)$row['total_pengesahan'];
+					$kode = $row['kode_pokja'];
+					if (!isset($chart_grouped_pengesahan[$kode])) {
+						$chart_grouped_pengesahan[$kode] = [
+							'label' => $kode,
+							'total' => 0,
+							'details' => []
+						];
+					}
+
+					$total_pengesahan = (int)$row['total_pengesahan'];
+					$chart_grouped_pengesahan[$kode]['total'] += $total_pengesahan;
+					if ($is_filter_pokja || $total_pengesahan > 0) {
+						$chart_grouped_pengesahan[$kode]['details'][] = $row['nama_lengkap'] . ' (' . $total_pengesahan . ')';
+					}
+				}
+
+				foreach ($chart_grouped_pengesahan as $item_chart) {
+					$details = !empty($item_chart['details']) ? implode(', ', $item_chart['details']) : $item_chart['label'] . ' (0)';
+					$chart_labels_pengesahan[] = $item_chart['label'];
+					$chart_data_pengesahan[] = $item_chart['total'];
+					$chart_details_pengesahan[] = $details;
+
+					if (count($item_chart['details']) > 1) {
+						$chart_group_notes_pengesahan[] = $item_chart['label'] . ': ' . $details;
+					}
 				}
 				?>
 
@@ -289,6 +341,16 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 						<div class="pengesahan-chart-wrap">
 							<div id="pengesahanChart" style="width:100%; height:400px;"></div>
 						</div>
+						<?php if (!empty($chart_group_notes_pengesahan)) { ?>
+							<div class="pengesahan-chart-note">
+								<strong>Rincian pokja dengan beberapa program:</strong>
+								<ul>
+									<?php foreach ($chart_group_notes_pengesahan as $note_pengesahan) { ?>
+										<li><?= htmlspecialchars($note_pengesahan); ?></li>
+									<?php } ?>
+								</ul>
+							</div>
+						<?php } ?>
 					</div>
 				</div>
 			</div>
@@ -333,6 +395,7 @@ $(document).ready(function() {
 
 console.log('Labels Pengesahan:', <?php echo json_encode($chart_labels_pengesahan); ?>);
 console.log('Data Pengesahan:', <?php echo json_encode($chart_data_pengesahan); ?>);
+var detailPengesahan = <?php echo json_encode($chart_details_pengesahan); ?>;
 Highcharts.chart('pengesahanChart', {
     chart: {
         type: 'column'
@@ -357,6 +420,12 @@ Highcharts.chart('pengesahanChart', {
         data: <?php echo json_encode($chart_data_pengesahan); ?>,
         color: '#006633'
     }],
+    tooltip: {
+        formatter: function() {
+            var detail = detailPengesahan[this.point.index] || this.x;
+            return '<b>' + this.x + '</b><br>Total: <b>' + this.y + '</b><br>' + detail;
+        }
+    },
     credits: {
         enabled: false
     }
