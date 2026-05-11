@@ -69,26 +69,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 	}
 
 	.pengesahan-table-scroll {
-		overflow-x: auto;
-		overflow-y: hidden;
 		width: 100%;
-	}
-
-	.pengesahan-table-scroll::-webkit-scrollbar,
-	div.dataTables_scrollBody::-webkit-scrollbar {
-		height: 10px;
-	}
-
-	.pengesahan-table-scroll::-webkit-scrollbar-track,
-	div.dataTables_scrollBody::-webkit-scrollbar-track {
-		background: #eef1f4;
-		border-radius: 999px;
-	}
-
-	.pengesahan-table-scroll::-webkit-scrollbar-thumb,
-	div.dataTables_scrollBody::-webkit-scrollbar-thumb {
-		background: #8c98a4;
-		border-radius: 999px;
 	}
 
 	#example0 {
