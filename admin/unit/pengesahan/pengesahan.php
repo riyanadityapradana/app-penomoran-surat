@@ -165,10 +165,11 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 							<select name="kode_pokja" id="kode_pokja" class="form-control" style="border: 2px solid #009688; background-color:#e0f2f1; color:#004d40;">
 								<option value="">-- Semua Pokja --</option>
 								<?php
-								$q_pokja = mysqli_query($config, "SELECT id_user, kode_pokja FROM tb_user WHERE level = 'Pokja' ORDER BY kode_pokja ASC");
+								$q_pokja = mysqli_query($config, "SELECT id_user, kode_pokja, nama_lengkap FROM tb_user WHERE level = 'Pokja' ORDER BY kode_pokja ASC, nama_lengkap ASC");
 								while ($p = mysqli_fetch_assoc($q_pokja)) {
 									$selected = (isset($_GET['kode_pokja']) && $_GET['kode_pokja'] == $p['id_user']) ? 'selected' : '';
-									echo "<option value='{$p['id_user']}' $selected>{$p['kode_pokja']}</option>";
+									$label_pokja = $p['kode_pokja'] . ' - ' . $p['nama_lengkap'];
+									echo "<option value='" . htmlspecialchars($p['id_user']) . "' $selected>" . htmlspecialchars($label_pokja) . "</option>";
 								}
 								?>
 							</select>
@@ -241,7 +242,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 									}
 
 									$query = mysqli_query($config, "
-										SELECT p.*, j.nama_jenis, k.kode_pokja
+										SELECT p.*, j.nama_jenis, k.kode_pokja, k.nama_lengkap
 										FROM tb_pengajuan_dokumen p
 										LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
 										LEFT JOIN tb_user k ON p.id_user = k.id_user
@@ -270,13 +271,13 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 												<td>{$row['nama_jenis']}</td>
 												<td>{$row['judul_dokumen']}</td>
 												<td>{$tgl_dok}</td>
-												<td>{$row['kode_pokja']}</td>
+												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
 												<td><span class='badge badge-primary'>Selesai</span></td>
 											</tr>";
 											$no++;
 										}
 									} else {
-										echo "<tr><td colspan='8'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
+										echo "<tr><td colspan='7'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
 									}
 									?>
 								</tbody>
@@ -304,15 +305,13 @@ $(document).ready(function() {
         "scrollX": true,
         "autoWidth": false,
         "columnDefs": [
-            { "orderable": false, "targets": 7 },
             { "width": "60px", "targets": 0 },
             { "width": "150px", "targets": 1 },
             { "width": "130px", "targets": 2 },
             { "width": "210px", "targets": 3 },
             { "width": "115px", "targets": 4 },
             { "width": "100px", "targets": 5 },
-            { "width": "95px", "targets": 6 },
-            { "width": "132px", "targets": 7 }
+            { "width": "95px", "targets": 6 }
         ],
         "lengthMenu": [[5, 10, 25, 50], [5, 10, 25, 50]],
         "language": {
