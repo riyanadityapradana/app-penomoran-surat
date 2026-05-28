@@ -99,14 +99,14 @@ $query = mysqli_query($config, "
     <table id="example2" class="table table-bordered table-striped app-table">
                     <thead style="background:rgb(0, 0, 0, 1)">
                         <tr class="text-center">
-                            <th style="color:white;">No</th>
-                            <th style="color:white;">Tanggal Ajuan</th>
-                            <th style="color:white;">Kode Pokja</th>
-                            <th style="color:white;">Jenis Dokumen</th>
-                            <th style="color:white;">No Surat</th>
-                            <th style="color:white;">Status</th>
-							<th style="color:white;">File Draft</th>
-                            <th style="color:white;">Aksi</th>
+                            <th style="color:white;" responsive>No</th>
+                            <th style="color:white;" responsive>Tanggal Ajuan</th>
+                            <th style="color:white;" responsive>Dokumen Pokja</th>
+                            <th style="color:white;" responsive>Judul Dokumen</th>
+                            <th style="color:white;" responsive>No Surat</th>
+                            <th style="color:white;" responsive>Status</th>
+							<th style="color:white;" responsive>File Draft</th>
+                            <th style="color:white;" responsive>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,8 +117,8 @@ $query = mysqli_query($config, "
                                 echo "<tr>
                                         <td class='text-center'>{$no}</td>
                                         <td class='text-center'>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
-                                        <td class='text-center'>{$row['kode_pokja']}</td>
-                                        <td class='text-long'>{$row['nama_jenis']}</td>
+                                        <td class='text-left'>{$row['kode_pokja']}<br><small style='color: #6c757d;'>Jenis Dokumen: {$row['nama_jenis']}</small></td>
+                                        <td class='text-long'>{$row['judul_dokumen']}</td>
                                         <td class='text-center'>";
                                         if (!empty($row['nomor_surat'])) {
                                             echo "<span class='badge badge-defauld' style='color: black; font-weight: bold;'>" . htmlspecialchars($row['nomor_surat']) . "</span>";
