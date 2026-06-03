@@ -33,33 +33,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
     $bulan = $bulan_romawi[(int) date('n')];
     $tahun = date('Y');
 
-    $nomor_pattern = "%/$jenis_dokumen/$kode_pokja/$bulan/$tahun";
+    $nomor_pattern = "A/%/$jenis_dokumen/$kode_pokja/%/$tahun";
     $q_nomor = mysqli_query($config, "
-        SELECT p.nomor_surat
+        SELECT MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p.nomor_surat, '/', 2), '/', -1) AS UNSIGNED)) AS last_urutan
         FROM tb_pengajuan_dokumen p
         LEFT JOIN tb_user u ON p.id_user = u.id_user
         LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
         WHERE u.kode_pokja = '$kode_pokja'
           AND UPPER(j.kode_jenis) = '$jenis_dokumen'
           AND p.nomor_surat IS NOT NULL
+          AND p.nomor_surat != ''
           AND p.nomor_surat LIKE '$nomor_pattern'
-        ORDER BY p.id_pengajuan DESC
-        LIMIT 1
     ");
 
-    if (mysqli_num_rows($q_nomor) > 0) {
-        $last_nomor = mysqli_fetch_assoc($q_nomor)['nomor_surat'];
-        $parts = explode('/', $last_nomor);
-        $last_urutan = 0;
-
-        if (isset($parts[1]) && is_numeric(trim($parts[1]))) {
-            $last_urutan = (int) trim($parts[1]);
-        }
-
-        $urutan = str_pad($last_urutan + 1, 3, '0', STR_PAD_LEFT);
-    } else {
-        $urutan = '001';
-    }
+    $row_nomor = mysqli_fetch_assoc($q_nomor);
+    $last_urutan = isset($row_nomor['last_urutan']) ? (int) $row_nomor['last_urutan'] : 0;
+    $urutan = str_pad($last_urutan + 1, 3, '0', STR_PAD_LEFT);
 
     $nomor_surat = "A/$urutan/$jenis_dokumen/$kode_pokja/$bulan/$tahun";
 
