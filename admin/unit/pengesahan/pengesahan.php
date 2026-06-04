@@ -1,3 +1,92 @@
+<?php
+function hapus_file_pengesahan($filename)
+{
+	if (empty($filename)) {
+		return true;
+	}
+
+	$safeFilename = basename($filename);
+	$uploadDirs = [
+		__DIR__ . '/../../../assets/upload/draft_word',
+		__DIR__ . '/../../../assets/upload',
+	];
+
+	foreach ($uploadDirs as $uploadDir) {
+		$uploadDirReal = realpath($uploadDir);
+		if ($uploadDirReal === false) {
+			continue;
+		}
+
+		$filePath = $uploadDirReal . DIRECTORY_SEPARATOR . $safeFilename;
+		$filePathReal = realpath($filePath);
+		if ($filePathReal === false || !is_file($filePathReal)) {
+			continue;
+		}
+
+		$allowedPrefix = rtrim($uploadDirReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+		if (stripos($filePathReal, $allowedPrefix) !== 0) {
+			continue;
+		}
+
+		if (!unlink($filePathReal)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hapus_pengesahan'])) {
+	$id_pengajuan = isset($_POST['id_pengajuan']) ? mysqli_real_escape_string($config, $_POST['id_pengajuan']) : '';
+
+	if ($id_pengajuan === '') {
+		header('Location: main_admin.php?unit=pengesahan&err=ID pengesahan tidak ditemukan!');
+		exit;
+	}
+
+	$q_hapus = mysqli_query($config, "
+		SELECT id_pengajuan, file_draft, file_final
+		FROM tb_pengajuan_dokumen
+		WHERE id_pengajuan = '$id_pengajuan' AND status = 'Selesai'
+	");
+
+	if (!$q_hapus || mysqli_num_rows($q_hapus) === 0) {
+		header('Location: main_admin.php?unit=pengesahan&err=Data pengesahan tidak ditemukan atau belum berstatus Selesai!');
+		exit;
+	}
+
+	$data_hapus = mysqli_fetch_assoc($q_hapus);
+	$files = array_unique(array_filter([$data_hapus['file_draft'], $data_hapus['file_final']]));
+	$file_deleted = true;
+
+	foreach ($files as $file) {
+		if (!hapus_file_pengesahan($file)) {
+			$file_deleted = false;
+			break;
+		}
+	}
+
+	if (!$file_deleted) {
+		header('Location: main_admin.php?unit=pengesahan&err=Gagal menghapus file PDF terkait. Periksa izin folder upload!');
+		exit;
+	}
+
+	$delete = mysqli_query($config, "
+		DELETE FROM tb_pengajuan_dokumen
+		WHERE id_pengajuan = '$id_pengajuan' AND status = 'Selesai'
+	");
+
+	if ($delete) {
+		header('Location: main_admin.php?unit=pengesahan&msg=Data pengesahan dan file PDF berhasil dihapus!');
+		exit;
+	}
+
+	$errMsg = urlencode('Gagal menghapus data pengesahan: ' . mysqli_error($config));
+	header('Location: main_admin.php?unit=pengesahan&err=' . $errMsg);
+	exit;
+}
+?>
+
 <!-- Content Header (Page header) -->
 <section class="content-header">
 	<div class="container-fluid">
@@ -300,6 +389,12 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 													<button type='button' class='btn btn-sm btn-success' title='Kirim WhatsApp' onclick='kirimWA({$row['id_pengajuan']}, \"{$row['no_tlp']}\", \"{$row['kode_pokja']}\", \"{$row['nomor_surat']}\", \"{$row['judul_dokumen']}\", \"{$row['nama_jenis']}\", \"{$row['tanggal_dokumen']}\")'>
 														<i class='fab fa-whatsapp'></i>
 													</button>
+													<form method='POST' class='d-inline' onsubmit=\"return confirm('Apakah Anda ingin menghapus data ini? Data dan file PDF terkait akan dihapus permanen.');\">
+														<input type='hidden' name='id_pengajuan' value='{$row['id_pengajuan']}'>
+														<button type='submit' name='hapus_pengesahan' class='btn btn-sm btn-danger' title='Hapus data'>
+															<i class='fas fa-trash'></i>
+														</button>
+													</form>
 												</td>
 												<td>{$row['nama_jenis']}</td>
 												<td>{$row['judul_dokumen']}</td>
@@ -349,7 +444,7 @@ $(document).ready(function() {
         "autoWidth": false,
         "columnDefs": [
             { "width": "60px", "targets": 0 },
-            { "width": "150px", "targets": 1 },
+            { "width": "180px", "targets": 1 },
             { "width": "130px", "targets": 2 },
             { "width": "210px", "targets": 3 },
             { "width": "115px", "targets": 4 },
