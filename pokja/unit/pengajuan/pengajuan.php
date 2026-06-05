@@ -33,7 +33,7 @@
 			</div>
 			<div class="card-body">
 				<div class="alert alert-info">
-					<i class="fas fa-info-circle"></i> <strong>Catatan:</strong> Jika status pengajuan masih <b>'Menunggu Verifikasi' atau 'Disetujui'</b>, maka data dapat diubah.
+					<i class="fas fa-info-circle"></i> <strong>Catatan:</strong> Jika status pengajuan masih <b>'Menunggu Verifikasi'</b>, maka data dapat diubah atau dihapus.
 				</div>
 				<table id="example2" class="table table-bordered table-striped text-center app-table">
 					<thead style="background:rgb(0, 0, 0, 1); color: white;">
@@ -57,7 +57,7 @@
 							SELECT p.*, j.nama_jenis
 							FROM tb_pengajuan_dokumen p
 							LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
-							WHERE p.id_user = '$id_user' AND status != 'Selesai'
+							WHERE p.id_user = '$id_user'
 							ORDER BY p.id_pengajuan DESC
 						");
 
@@ -105,8 +105,8 @@
 										<i class='fas fa-eye'></i>
 									  </a> ";
 
-								// Tombol Edit & Hapus hanya jika status 'Menunggu Verifikasi' atau 'Disetujui'
-								if ($status == 'Menunggu Verifikasi' || $status == 'Disetujui') {
+								// Tombol Edit & Hapus hanya jika status masih menunggu verifikasi
+								if ($status == 'Menunggu Verifikasi') {
 									echo "<a href='main_pokja.php?unit=update_pengajuan&id_pengajuan={$row['id_pengajuan']}' 
 											class='btn btn-sm btn-success'>
 											<i class='fas fa-edit'></i>

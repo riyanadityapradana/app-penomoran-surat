@@ -20,10 +20,10 @@ if (isset($_GET['id_pengajuan'])) {
 
     $data = mysqli_fetch_assoc($cek);
 
-    // Hanya bisa dihapus jika status 'Menunggu Verifikasi' atau 'Disetujui'
-    if ($data['status'] != 'Menunggu Verifikasi' && $data['status'] != 'Disetujui') {
+    // Hanya bisa dihapus jika status masih menunggu verifikasi
+    if ($data['status'] != 'Menunggu Verifikasi') {
         echo "<script>
-                alert('Data tidak dapat dihapus karena status sudah selesai atau ditolak!');
+                alert('Data tidak dapat dihapus karena status sudah disetujui, selesai, atau ditolak!');
                 window.location = 'main_pokja.php?unit=pengajuan';
               </script>";
         exit;

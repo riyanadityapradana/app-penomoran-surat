@@ -28,13 +28,13 @@ if (isset($_GET['id_pengajuan'])) {
     exit;
 }
 
-if ($data['status'] != 'Menunggu Verifikasi' && $data['status'] != 'Disetujui') {
-    echo "<script>alert('Data tidak dapat diedit karena status sudah selesai atau ditolak!');window.location='main_pokja.php?unit=pengajuan';</script>";
+if ($data['status'] != 'Menunggu Verifikasi') {
+    echo "<script>alert('Data tidak dapat diedit karena status sudah disetujui, selesai, atau ditolak!');window.location='main_pokja.php?unit=pengajuan';</script>";
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $id_pengajuan = mysqli_real_escape_string($config, $_POST['id_pengajuan']);
+    $id_pengajuan = mysqli_real_escape_string($config, $data['id_pengajuan']);
     $id_jenis = mysqli_real_escape_string($config, $_POST['id_jenis']);
     $judul_dokumen = mysqli_real_escape_string($config, $_POST['judul_dokumen']);
     $tanggal_dokumen = mysqli_real_escape_string($config, $_POST['tanggal_dokumen']);
@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $setParts[] = "no_tlp = '$no_tel'";
     }
 
-    $query_update = "UPDATE tb_pengajuan_dokumen SET " . implode(', ', $setParts) . " WHERE id_pengajuan = '$id_pengajuan'";
+    $query_update = "UPDATE tb_pengajuan_dokumen SET " . implode(', ', $setParts) . " WHERE id_pengajuan = '$id_pengajuan' AND id_user = '{$_SESSION['id_user']}'";
 
     if (mysqli_query($config, $query_update)) {
         echo "<script>alert('Data pengajuan berhasil diperbarui!');window.location='main_pokja.php?unit=pengajuan';</script>";
