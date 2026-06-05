@@ -39,10 +39,9 @@
 					<thead style="background:rgb(0, 0, 0, 1); color: white;">
 						<tr>
 							<th>No</th>
-							<th style="font-size: 14px;" width="100" responsive>Standard EP</th>
-							<th style="font-size: 14px;" width="100" responsive>Jenis Dokumen</th>
-							<th style="font-size: 14px;" width="100" responsive>Judul Dokumen</th>
 							<th style="font-size: 14px;" width="100" responsive>Tgl Ajuan</th>
+							<th style="font-size: 14px;" width="100" responsive>Standard EP</th>
+							<th style="font-size: 14px;" width="190" responsive>Judul Dokumen</th>
 							<th style="font-size: 14px;" width="90" responsive>Status</th>
 							<th style="font-size: 14px;" width="120" responsive>File Draft</th>
 							<th style="font-size: 14px;" width="150" responsive>Aksi</th>
@@ -69,10 +68,9 @@
 
 								echo "<tr>
 									<td>{$no}</td>
-									<td class='text-long'>{$row['elemen_penilaian']}</td>
-									<td>{$row['nama_jenis']}</td>
-									<td class='text-long'>{$row['judul_dokumen']}</td>
 									<td>{$tgl_ajuan}</td>
+									<td class='text-long text-left'>{$row['elemen_penilaian']}<br><small style='color: #6c757d;'>Jenis Dokumen: {$row['nama_jenis']}</small></td>
+									<td class='text-long text-left' style='width: 190px;'>{$row['judul_dokumen']}</td>
 									<td>";
 
 								if ($status == 'Menunggu Verifikasi') {
