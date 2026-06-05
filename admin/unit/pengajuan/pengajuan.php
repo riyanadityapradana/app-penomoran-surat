@@ -27,9 +27,9 @@ $kode_pokja_filter = isset($_GET['kode_pokja']) ? $_GET['kode_pokja'] : '';
 $kode_pokja_query = mysqli_query($config, "SELECT DISTINCT kode_pokja FROM tb_user WHERE kode_pokja != '' ORDER BY kode_pokja ASC");
 
 // --- AMBIL SEMUA DATA PENGAJUAN DARI POKJA DENGAN FILTER --- //
-$where_clause = "";
+$where_clause = "WHERE p.status != 'Selesai'";
 if (!empty($kode_pokja_filter)) {
-    $where_clause = "WHERE u.kode_pokja = '" . mysqli_real_escape_string($config, $kode_pokja_filter) . "'";
+    $where_clause .= " AND u.kode_pokja = '" . mysqli_real_escape_string($config, $kode_pokja_filter) . "'";
 }
 
 $query = mysqli_query($config, "
@@ -155,17 +155,8 @@ $query = mysqli_query($config, "
                                 echo "</td>
                                       <td class='text-center'>
                                         <a href='main_admin.php?unit=detail_pengajuan&id_pengajuan={$row['id_pengajuan']}' 
-                                           class='btn btn-sm btn-info' title='Detail'>
-                                           <i class='fas fa-eye'></i>
-                                        </a>
-                                        <a href='main_admin.php?unit=update_pengajuan&id_pengajuan={$row['id_pengajuan']}'
-                                           class='btn btn-sm btn-success' title='Edit'>
-                                           <i class='fas fa-edit'></i>
-                                        </a>
-                                        <a href='main_admin.php?unit=delete_pengajuan&id_pengajuan={$row['id_pengajuan']}'
-                                           onclick=\"return confirm('Yakin ingin menghapus data pengajuan ini? File terkait juga akan dihapus permanen.')\"
-                                           class='btn btn-sm btn-danger' title='Hapus'>
-                                           <i class='fas fa-trash'></i>
+                                           class='btn btn-sm btn-info'>
+                                           <i class='fas fa-eye'></i> Detail
                                         </a>
                                       </td>
                                     </tr>";

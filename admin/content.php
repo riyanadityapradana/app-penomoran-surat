@@ -25,12 +25,6 @@ else if ($_GET['unit'] == "pengajuan"){
 else if ($_GET['unit'] == "detail_pengajuan"){
   require_once("unit/pengajuan/detail.php");
 }
-else if ($_GET['unit'] == "update_pengajuan"){
-  require_once("unit/pengajuan/update.php");
-}
-else if ($_GET['unit'] == "delete_pengajuan"){
-  require_once("unit/pengajuan/delete.php");
-}
 else if ($_GET['unit'] == "verifikasi_pengajuan"){
   require_once("unit/pengajuan/verifikasi.php");
 }

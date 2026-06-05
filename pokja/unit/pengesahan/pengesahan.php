@@ -222,12 +222,22 @@
 												<td><span class='badge badge-primary'>Selesai</span></td>
 												<td>";
 
-											if (!empty($row['file_draft'])) {
-												echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' 
+											$pdfFinal = !empty($row['file_final']) ? $row['file_final'] : '';
+											$wordFinal = !empty($row['file_draft']) ? $row['file_draft'] : '';
+											if (!empty($pdfFinal) && file_exists('../assets/upload/draft_final/' . $pdfFinal)) {
+												echo "<a href='../assets/upload/draft_final/{$pdfFinal}' 
 														target='_blank' class='btn btn-sm btn-success' title='Download PDF final'>
-														<i class='fas fa-file-pdf'></i> Download
+														<i class='fas fa-file-pdf'></i> PDF
 													</a>";
-											} else {
+											}
+											if (!empty($wordFinal) && preg_match('/\.(doc|docx)$/i', $wordFinal) && file_exists('../assets/upload/draft_final/' . $wordFinal)) {
+												echo "<a href='../assets/upload/draft_final/{$wordFinal}' 
+														target='_blank' class='btn btn-sm btn-info' title='Download Word final'>
+														<i class='fas fa-file-word'></i> Word
+													</a>";
+											}
+											if ((empty($pdfFinal) || !file_exists('../assets/upload/draft_final/' . $pdfFinal))
+												&& (empty($wordFinal) || !preg_match('/\.(doc|docx)$/i', $wordFinal) || !file_exists('../assets/upload/draft_final/' . $wordFinal))) {
 												echo "-";
 											}
 

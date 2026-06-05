@@ -29,7 +29,7 @@ if (isset($_GET['id_pengajuan'])) {
 if (isset($_POST['edit_upload_pdf'])) {
     $upload = app_store_uploaded_file(
         $_FILES['file_pdf'] ?? null,
-        '../assets/upload/draft_word/',
+        '../assets/upload/draft_final/',
         'dokumen_final_' . $id_pengajuan,
         ['pdf'],
         ['application/pdf', 'application/octet-stream'],
@@ -42,14 +42,14 @@ if (isset($_POST['edit_upload_pdf'])) {
         $new_name = $upload['filename'];
 
         // Hapus file lama jika ada
-        if (!empty($data['file_draft']) && file_exists('../assets/upload/draft_word/' . $data['file_draft'])) {
-            unlink('../assets/upload/draft_word/' . $data['file_draft']);
+        if (!empty($data['file_final']) && file_exists('../assets/upload/draft_final/' . $data['file_final'])) {
+            unlink('../assets/upload/draft_final/' . $data['file_final']);
         }
 
         // Update database
         mysqli_query($config, "
             UPDATE tb_pengajuan_dokumen
-            SET file_draft='$new_name', file_final='$new_name'
+            SET file_final='$new_name'
             WHERE id_pengajuan='$id_pengajuan'
         ");
 
@@ -77,9 +77,21 @@ if (isset($_POST['edit_upload_pdf'])) {
                             </button>
                         </form>
                     <?php endif; ?>
-                    <?php if (!empty($data['file_draft'])): ?>
-                        <a href="../assets/upload/draft_word/<?= $data['file_draft']; ?>" class="btn btn-sm btn-success ml-2" download>
-                            <i class="fas fa-download"></i> Download
+                    <?php
+                    $pdfHeaderFile = !empty($data['file_final']) ? $data['file_final'] : $data['file_draft'];
+                    $pdfHeaderFolder = file_exists('../assets/upload/draft_final/' . $pdfHeaderFile) ? 'draft_final' : 'draft_word';
+                    $hasWordFinal = !empty($data['file_draft'])
+                        && preg_match('/\.(doc|docx)$/i', $data['file_draft'])
+                        && file_exists('../assets/upload/draft_final/' . $data['file_draft']);
+                    ?>
+                    <?php if (!empty($pdfHeaderFile)): ?>
+                        <a href="../assets/upload/<?= $pdfHeaderFolder; ?>/<?= htmlspecialchars($pdfHeaderFile); ?>" class="btn btn-sm btn-success ml-2" download>
+                            <i class="fas fa-file-pdf"></i> PDF Final
+                        </a>
+                    <?php endif; ?>
+                    <?php if ($hasWordFinal): ?>
+                        <a href="../assets/upload/draft_final/<?= htmlspecialchars($data['file_draft']); ?>" class="btn btn-sm btn-info ml-2" download>
+                            <i class="fas fa-file-word"></i> Word Final
                         </a>
                     <?php endif; ?>
                 </div>
@@ -132,14 +144,17 @@ if (isset($_POST['edit_upload_pdf'])) {
                 <hr>
                 <h5>Preview Dokumen PDF:</h5>
 
-                <?php if (!empty($data['file_draft'])): ?>
+                <?php
+                    $pdfPreviewFile = !empty($data['file_final']) ? $data['file_final'] : $data['file_draft'];
+                    $pdfPreviewFolder = file_exists('../assets/upload/draft_final/' . $pdfPreviewFile) ? 'draft_final' : 'draft_word';
+                ?>
+                <?php if (!empty($pdfPreviewFile)): ?>
                     <?php
                         // Lokasi file di server
-                        $file_path = '../assets/upload/draft_word/' . $data['file_draft'];
+                        $file_path = '../assets/upload/' . $pdfPreviewFolder . '/' . $pdfPreviewFile;
 
-                        // URL absolut untuk viewer PDF
-                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/app_no-surat/assets/upload/draft_word//' . urlencode($data['file_draft']);
+                        // URL relatif mengikuti folder aplikasi yang sedang dibuka.
+                        $file_url = '../assets/upload/' . $pdfPreviewFolder . '/' . rawurlencode($pdfPreviewFile);
                     ?>
 
                     <!-- Tombol Download -->

@@ -89,20 +89,31 @@ if (isset($_GET['id_pengajuan'])) {
                 <hr>
                 <h5>Preview Dokumen PDF:</h5>
 
-                <?php if (!empty($data['file_draft'])): ?>
+                <?php
+                    $pdfPreviewFile = !empty($data['file_final']) ? $data['file_final'] : $data['file_draft'];
+                    $pdfPreviewFolder = file_exists('../assets/upload/draft_final/' . $pdfPreviewFile) ? 'draft_final' : 'draft_word';
+                    $hasWordFinal = !empty($data['file_draft'])
+                        && preg_match('/\.(doc|docx)$/i', $data['file_draft'])
+                        && file_exists('../assets/upload/draft_final/' . $data['file_draft']);
+                ?>
+                <?php if (!empty($pdfPreviewFile)): ?>
                     <?php
                         // Lokasi file di server
-                        $file_path = '../assets/upload/draft_word/' . $data['file_draft'];
+                        $file_path = '../assets/upload/' . $pdfPreviewFolder . '/' . $pdfPreviewFile;
 
-                        // URL absolut untuk viewer PDF
-                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $file_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/app_no-surat/assets/upload/draft_word//' . urlencode($data['file_draft']);
+                        // URL relatif mengikuti folder aplikasi yang sedang dibuka.
+                        $file_url = '../assets/upload/' . $pdfPreviewFolder . '/' . rawurlencode($pdfPreviewFile);
                     ?>
 
                     <!-- Tombol Download -->
                     <a href="<?= $file_path; ?>" class="btn btn-success mb-3 float-right ml-2" download>
                         <i class="fas fa-download"></i> Download File PDF
                     </a>
+                    <?php if ($hasWordFinal): ?>
+                    <a href="../assets/upload/draft_final/<?= htmlspecialchars($data['file_draft']); ?>" class="btn btn-info mb-3 float-right ml-2" download>
+                        <i class="fas fa-file-word"></i> Download File Word
+                    </a>
+                    <?php endif; ?>
 
                     <!-- Tombol Cetak -->
                     <button type="button" class="btn btn-primary mb-3 float-right" onclick="printPDF('<?= $file_url; ?>')">

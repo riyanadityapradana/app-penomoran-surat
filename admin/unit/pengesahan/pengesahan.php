@@ -1,4 +1,6 @@
 <?php
+require_once("../config/upload_helper.php");
+
 function hapus_file_pengesahan($filename)
 {
 	if (empty($filename)) {
@@ -7,6 +9,7 @@ function hapus_file_pengesahan($filename)
 
 	$safeFilename = basename($filename);
 	$uploadDirs = [
+		__DIR__ . '/../../../assets/upload/draft_final',
 		__DIR__ . '/../../../assets/upload/draft_word',
 		__DIR__ . '/../../../assets/upload',
 	];
@@ -34,6 +37,146 @@ function hapus_file_pengesahan($filename)
 	}
 
 	return true;
+}
+
+function nama_file_final_pengesahan($data, $id_pengajuan)
+{
+	$tanggal = !empty($data['tanggal_dokumen']) ? date('Ymd', strtotime($data['tanggal_dokumen'])) : date('Ymd');
+	$parts = [
+		$data['elemen_penilaian'] ?? '',
+		$tanggal,
+		$data['nomor_surat'] ?? ''
+	];
+	$base = preg_replace('/[^a-zA-Z0-9]+/', '_', implode('_', $parts));
+	$base = trim($base, '_');
+
+	return $base !== '' ? $base : 'dokumen_final_' . $id_pengajuan;
+}
+
+function simpan_file_final_pengesahan($file, $uploadDir, $filenameBase, $allowedExtensions, $allowedMimes, $maxBytes)
+{
+	$validation = app_validate_upload($file, $allowedExtensions, $allowedMimes, $maxBytes);
+	if (!$validation['ok']) {
+		return $validation;
+	}
+
+	if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true)) {
+		return ['ok' => false, 'message' => 'Folder draft_final tidak dapat dibuat.'];
+	}
+
+	if (!is_writable($uploadDir)) {
+		return ['ok' => false, 'message' => 'Folder draft_final tidak dapat ditulis.'];
+	}
+
+	$filename = $filenameBase . '.' . $validation['extension'];
+	$destination = rtrim($uploadDir, '/\\') . DIRECTORY_SEPARATOR . $filename;
+
+	if (file_exists($destination) && !unlink($destination)) {
+		return ['ok' => false, 'message' => 'File final lama tidak dapat diganti.'];
+	}
+
+	if (!move_uploaded_file($file['tmp_name'], $destination)) {
+		return ['ok' => false, 'message' => 'Gagal menyimpan file final.'];
+	}
+
+	return ['ok' => true, 'filename' => $filename, 'path' => $destination];
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan'])) {
+	$id_pengajuan = isset($_POST['id_pengajuan']) ? mysqli_real_escape_string($config, $_POST['id_pengajuan']) : '';
+
+	if ($id_pengajuan === '') {
+		header('Location: main_admin.php?unit=pengesahan&err=ID pengesahan tidak ditemukan!');
+		exit;
+	}
+
+	$q_edit = mysqli_query($config, "
+		SELECT id_pengajuan, elemen_penilaian, tanggal_dokumen, nomor_surat, file_draft, file_final
+		FROM tb_pengajuan_dokumen
+		WHERE id_pengajuan = '$id_pengajuan' AND status = 'Selesai'
+	");
+
+	if (!$q_edit || mysqli_num_rows($q_edit) === 0) {
+		header('Location: main_admin.php?unit=pengesahan&err=Data pengesahan tidak ditemukan atau belum berstatus Selesai!');
+		exit;
+	}
+
+	$data_edit = mysqli_fetch_assoc($q_edit);
+	$uploadDir = '../assets/upload/draft_final/';
+	$filenameBase = nama_file_final_pengesahan($data_edit, $id_pengajuan);
+	$uploadWord = null;
+	$uploadPdf = null;
+	$word_name = $data_edit['file_draft'];
+	$pdf_name = $data_edit['file_final'];
+
+	if (!empty($_FILES['file_word_final']['name'])) {
+		$uploadWord = simpan_file_final_pengesahan(
+			$_FILES['file_word_final'],
+			$uploadDir,
+			$filenameBase,
+			['doc', 'docx'],
+			[
+				'application/msword',
+				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+				'application/zip',
+				'application/octet-stream'
+			],
+			15 * 1024 * 1024
+		);
+
+		if (!$uploadWord['ok']) {
+			header('Location: main_admin.php?unit=pengesahan&err=' . urlencode($uploadWord['message']));
+			exit;
+		}
+
+		$word_name = $uploadWord['filename'];
+	}
+
+	if (!empty($_FILES['file_pdf_final']['name'])) {
+		$uploadPdf = simpan_file_final_pengesahan(
+			$_FILES['file_pdf_final'],
+			$uploadDir,
+			$filenameBase,
+			['pdf'],
+			['application/pdf', 'application/octet-stream'],
+			15 * 1024 * 1024
+		);
+
+		if (!$uploadPdf['ok']) {
+			if (!empty($uploadWord['filename'])) {
+				hapus_file_pengesahan($uploadWord['filename']);
+			}
+			header('Location: main_admin.php?unit=pengesahan&err=' . urlencode($uploadPdf['message']));
+			exit;
+		}
+
+		$pdf_name = $uploadPdf['filename'];
+	}
+
+	if ($uploadWord && !empty($data_edit['file_draft']) && $data_edit['file_draft'] !== $word_name) {
+		hapus_file_pengesahan($data_edit['file_draft']);
+	}
+	if ($uploadPdf && !empty($data_edit['file_final']) && $data_edit['file_final'] !== $pdf_name) {
+		hapus_file_pengesahan($data_edit['file_final']);
+	}
+
+	$word_name = mysqli_real_escape_string($config, $word_name);
+	$pdf_name = mysqli_real_escape_string($config, $pdf_name);
+	$update = mysqli_query($config, "
+		UPDATE tb_pengajuan_dokumen
+		SET file_draft = '$word_name',
+			file_final = '$pdf_name'
+		WHERE id_pengajuan = '$id_pengajuan' AND status = 'Selesai'
+	");
+
+	if ($update) {
+		header('Location: main_admin.php?unit=pengesahan&msg=File final Word dan PDF berhasil diperbarui!');
+		exit;
+	}
+
+	$errMsg = urlencode('Gagal memperbarui file final: ' . mysqli_error($config));
+	header('Location: main_admin.php?unit=pengesahan&err=' . $errMsg);
+	exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hapus_pengesahan'])) {
@@ -356,6 +499,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 								<tbody>
 									<?php
 									$no = 1;
+									$modal_edit_final = '';
 									$where = "WHERE p.status = 'Selesai'";
 
 									if (isset($_GET['kode_pokja']) && $_GET['kode_pokja'] != '') {
@@ -383,9 +527,9 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 													<a href='main_admin.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}' class='btn btn-sm btn-info' title='Lihat detail'>
 														<i class='fas fa-eye'></i>
 													</a>
-													<a href='main_admin.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}&edit=1' class='btn btn-sm btn-warning' title='Edit PDF'>
+													<button type='button' class='btn btn-sm btn-warning' title='Edit file final' data-toggle='modal' data-target='#modalEditFinal{$row['id_pengajuan']}'>
 														<i class='fas fa-edit'></i>
-													</a>
+													</button>
 													<button type='button' class='btn btn-sm btn-success' title='Kirim WhatsApp' onclick='kirimWA({$row['id_pengajuan']}, \"{$row['no_tlp']}\", \"{$row['kode_pokja']}\", \"{$row['nomor_surat']}\", \"{$row['judul_dokumen']}\", \"{$row['nama_jenis']}\", \"{$row['tanggal_dokumen']}\")'>
 														<i class='fab fa-whatsapp'></i>
 													</button>
@@ -402,6 +546,50 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
 												<td><span class='badge badge-primary'>Selesai</span></td>
 											</tr>";
+											$modal_edit_final .= "
+											<div class='modal fade' id='modalEditFinal{$row['id_pengajuan']}' tabindex='-1' role='dialog' aria-labelledby='modalEditFinalLabel{$row['id_pengajuan']}' aria-hidden='true'>
+												<div class='modal-dialog modal-dialog-centered' role='document'>
+													<div class='modal-content'>
+														<form method='POST' enctype='multipart/form-data' onsubmit=\"return confirm('Update file final Word dan PDF dokumen ini?');\">
+															<div class='modal-header bg-warning'>
+																<h5 class='modal-title' id='modalEditFinalLabel{$row['id_pengajuan']}'>
+																	<i class='fas fa-edit'></i> Edit File Final
+																</h5>
+																<button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+																	<span aria-hidden='true'>&times;</span>
+																</button>
+															</div>
+															<div class='modal-body'>
+																<input type='hidden' name='id_pengajuan' value='{$row['id_pengajuan']}'>
+																<div class='form-group'>
+																	<label>Nomor Dokumen</label>
+																	<input type='text' class='form-control' value='" . htmlspecialchars($row['nomor_surat']) . "' readonly>
+																</div>
+																<div class='form-group'>
+																	<label>Judul Dokumen</label>
+																	<input type='text' class='form-control' value='" . htmlspecialchars($row['judul_dokumen']) . "' readonly>
+																</div>
+																<div class='form-group'>
+																	<label>File Word Final</label>
+																	<input type='file' name='file_word_final' class='form-control-file' accept='.doc,.docx'>
+																	<small class='form-text text-muted'>Kosongkan jika Word final tidak ingin diubah.</small>
+																</div>
+																<div class='form-group'>
+																	<label>File PDF Final</label>
+																	<input type='file' name='file_pdf_final' class='form-control-file' accept='application/pdf'>
+																	<small class='form-text text-muted'>Kosongkan jika PDF final tidak ingin diubah. File akan disimpan ke folder draft_final.</small>
+																</div>
+															</div>
+															<div class='modal-footer'>
+																<button type='button' class='btn btn-secondary' data-dismiss='modal'>Batal</button>
+																<button type='submit' name='edit_final_pengesahan' class='btn btn-warning'>
+																	<i class='fas fa-save'></i> Update File Final
+																</button>
+															</div>
+														</form>
+													</div>
+												</div>
+											</div>";
 											$no++;
 										}
 									} else {
@@ -410,6 +598,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 									?>
 								</tbody>
 							</table>
+							<?= $modal_edit_final; ?>
 						</div>
 					</div>
 					<div class="col-lg-5">

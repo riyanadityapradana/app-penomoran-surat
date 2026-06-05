@@ -57,6 +57,7 @@
 							FROM tb_pengajuan_dokumen p
 							LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
 							WHERE p.id_user = '$id_user'
+							  AND p.status NOT IN ('Disetujui', 'Selesai')
 							ORDER BY p.id_pengajuan DESC
 						");
 
