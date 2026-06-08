@@ -57,6 +57,31 @@ if (isset($_POST['edit_upload_pdf'])) {
         exit;
     }
 }
+
+if (isset($_POST['edit_nomor_dokumen'])) {
+    $nomor_surat = isset($_POST['nomor_surat']) ? trim($_POST['nomor_surat']) : '';
+
+    if ($nomor_surat === '') {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Nomor dokumen tidak boleh kosong!');
+        exit;
+    }
+
+    $nomor_surat = mysqli_real_escape_string($config, $nomor_surat);
+    $update_nomor = mysqli_query($config, "
+        UPDATE tb_pengajuan_dokumen
+        SET nomor_surat = '$nomor_surat'
+        WHERE id_pengajuan = '$id_pengajuan' AND status = 'Selesai'
+    ");
+
+    if ($update_nomor) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=Nomor dokumen berhasil diperbarui!');
+        exit;
+    }
+
+    $errMsg = urlencode('Gagal memperbarui nomor dokumen: ' . mysqli_error($config));
+    header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
+    exit;
+}
 ?>
 
 <section class="content-header">
@@ -101,7 +126,12 @@ if (isset($_POST['edit_upload_pdf'])) {
                 <table class="table table-bordered">
                     <tr>
                         <th width="200">Nomor Surat</th>
-                        <td><span class="badge badge-success" style="font-size:1rem;"><?= htmlspecialchars($data['nomor_surat']); ?></span></td>
+                        <td>
+                            <span class="badge badge-success" style="font-size:1rem;"><?= htmlspecialchars($data['nomor_surat']); ?></span>
+                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditNomorDokumen">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </td>
                     </tr>
 					<tr>
                         <th width="200">Kode Pokja</th>
@@ -140,6 +170,33 @@ if (isset($_POST['edit_upload_pdf'])) {
                         <td><?= !empty($data['catatan_admin']) ? htmlspecialchars($data['catatan_admin']) : '-'; ?></td>
                     </tr>
                 </table>
+
+                <div class="modal fade" id="modalEditNomorDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditNomorDokumenLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST">
+                                <div class="modal-header bg-warning">
+                                    <h5 class="modal-title" id="modalEditNomorDokumenLabel">Edit Nomor Dokumen</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group">
+                                        <label for="nomor_surat">Nomor Dokumen</label>
+                                        <input type="text" name="nomor_surat" id="nomor_surat" class="form-control" value="<?= htmlspecialchars($data['nomor_surat']); ?>" required>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                    <button type="submit" name="edit_nomor_dokumen" class="btn btn-warning">
+                                        <i class="fas fa-save"></i> Simpan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
 
                 <hr>
                 <h5>Preview Dokumen PDF:</h5>
