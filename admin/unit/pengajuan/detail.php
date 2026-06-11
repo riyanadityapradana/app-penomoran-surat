@@ -26,10 +26,9 @@ if (isset($_GET['id_pengajuan'])) {
 
 function app_final_filename_base($data, $id_pengajuan)
 {
-    $tanggal = !empty($data['tanggal_dokumen']) ? date('Ymd', strtotime($data['tanggal_dokumen'])) : date('Ymd');
     $parts = [
         $data['elemen_penilaian'] ?? '',
-        $tanggal,
+        $data['judul_dokumen'] ?? '',
         $data['nomor_surat'] ?? ''
     ];
     $base = preg_replace('/[^a-zA-Z0-9]+/', '_', implode('_', $parts));
