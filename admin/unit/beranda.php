@@ -292,17 +292,18 @@ while ($row = mysqli_fetch_assoc($q_trend)) {
     </div>
 </section>
 
-<script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
-<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="../assets/chart/js/highcharts.js"></script>
 <script>
-console.log('Labels:', <?php echo json_encode($chart_labels); ?>);
-console.log('Data:', <?php echo json_encode($chart_data); ?>);
+if (window.Highcharts && document.getElementById('pokjaChart')) {
 Highcharts.chart('pokjaChart', {
     chart: {
-        type: 'column'
+        type: 'column',
+        backgroundColor: 'transparent',
+        borderRadius: 8
     },
     title: {
-        text: 'Grafik Pengajuan Dokumen per Pokja'
+        text: 'Pengajuan Dokumen per Pokja',
+        style: { fontWeight: '700', color: '#172033' }
     },
     xAxis: {
         categories: <?php echo json_encode($chart_labels); ?>,
@@ -319,16 +320,18 @@ Highcharts.chart('pokjaChart', {
     series: [{
         name: 'Total Pengajuan',
         data: <?php echo json_encode($chart_data); ?>,
-        color: '#17a2b8'
+        color: '#0f766e'
     }],
     credits: {
         enabled: false
     }
 });
+}
 
+if (window.Highcharts && document.getElementById('trendChart')) {
 Highcharts.chart('trendChart', {
-    chart: { type: 'line' },
-    title: { text: 'Tren Status Dokumen per Bulan' },
+    chart: { type: 'line', backgroundColor: 'transparent', borderRadius: 8 },
+    title: { text: 'Tren Status Dokumen per Bulan', style: { fontWeight: '700', color: '#172033' } },
     xAxis: { categories: <?php echo json_encode($trend_labels); ?> },
     yAxis: { title: { text: 'Jumlah Dokumen' }, allowDecimals: false },
     series: [
@@ -339,6 +342,7 @@ Highcharts.chart('trendChart', {
     ],
     credits: { enabled: false }
 });
+}
 </script>
 
 <script>

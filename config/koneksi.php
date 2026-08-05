@@ -21,7 +21,6 @@ if (is_file($envPath) && is_readable($envPath)) {
         $_SERVER[$name] = $value;
     }
 }
-
 $host = getenv('DB_HOST') ?: 'localhost';
 $username = getenv('DB_USERNAME') ?: 'root';
 $password = getenv('DB_PASSWORD') ?: '';

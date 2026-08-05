@@ -126,6 +126,16 @@
 
 ---
 
+👨‍💻 Dibuat Oleh
+
+Proyek ini dikembangkan dan dipelihara oleh **Riyan Aditya Pradana**.
+
+Aplikasi ini dibuat sebagai bagian dari proses pembelajaran dan pengembangan di bidang **Web Development**, khususnya dalam pengembangan aplikasi berbasis **PHP, MySQL, JavaScript**, dan teknologi multimedia.
+
+💙 Terima kasih telah menggunakan proyek ini.
+
+Jika proyek ini bermanfaat, jangan lupa memberikan ⭐ pada repository ini sebagai bentuk dukungan.
+
 📞 Support
 Untuk pertanyaan atau bantuan:
 

@@ -105,18 +105,19 @@ while ($row = mysqli_fetch_assoc($q_trend)) {
     </div>
 </section>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="../assets/chart/js/highcharts.js"></script>
 <script>
-$(document).ready(function() {
-    console.log('Labels:', <?php echo json_encode($chart_labels); ?>);
-    console.log('Data:', <?php echo json_encode($chart_data); ?>);
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.Highcharts && document.getElementById('statusChart')) {
     Highcharts.chart('statusChart', {
         chart: {
-            type: 'column'
+            type: 'column',
+            backgroundColor: 'transparent',
+            borderRadius: 8
         },
         title: {
-            text: 'Grafik Status Pengajuan Dokumen yang Diajukan per Pokja dengan Status Selesai'
+            text: 'Dokumen Selesai per Pokja',
+            style: { fontWeight: '700', color: '#172033' }
         },
         xAxis: {
             categories: <?php echo json_encode($chart_labels); ?>,
@@ -133,16 +134,18 @@ $(document).ready(function() {
         series: [{
             name: 'Jumlah',
             data: <?php echo json_encode($chart_data); ?>,
-            color: '#17a2b8'
+            color: '#0f766e'
         }],
         credits: {
             enabled: false
         }
     });
+    }
 
+    if (window.Highcharts && document.getElementById('trendChart')) {
     Highcharts.chart('trendChart', {
-        chart: { type: 'line' },
-        title: { text: 'Tren Pengajuan Saya 6 Bulan Terakhir' },
+        chart: { type: 'line', backgroundColor: 'transparent', borderRadius: 8 },
+        title: { text: 'Tren Pengajuan Saya 6 Bulan Terakhir', style: { fontWeight: '700', color: '#172033' } },
         xAxis: { categories: <?php echo json_encode($trend_labels); ?> },
         yAxis: {
             title: { text: 'Jumlah Dokumen' },
@@ -156,6 +159,7 @@ $(document).ready(function() {
         ],
         credits: { enabled: false }
     });
+    }
 });
 </script>
 
