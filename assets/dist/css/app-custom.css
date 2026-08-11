@@ -391,6 +391,15 @@ div.dataTables_scrollBody::-webkit-scrollbar-thumb {
     border-radius: 999px;
 }
 
+div.dataTables_scrollHeadInner {
+    min-width: 100%;
+}
+
+div.dataTables_scrollHeadInner > table,
+div.dataTables_scrollBody > table {
+    min-width: 100% !important;
+}
+
 .app-table {
     min-width: 980px;
     margin-bottom: 0 !important;

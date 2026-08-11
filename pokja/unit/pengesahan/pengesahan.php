@@ -174,7 +174,7 @@
 					<div class="col-lg-7">
 						<h4 class="text-center pengesahan-section-title">Tabel Daftar Dokumen yang Telah Disahkan Khusus <b>POKJA <?=strtoupper($_SESSION['kode_pokja']);?></b></h4>
 						<div class="pengesahan-table-wrap">
-							<table id="pengesahanTable" class="table table-bordered table-striped text-center">
+							<table id="pengesahanTable" class="table table-bordered table-striped text-center" style="width: 100%;">
 								<thead style="background:rgb(0, 102, 51, 1); color: white;">
 									<tr>
 										<th>No</th>

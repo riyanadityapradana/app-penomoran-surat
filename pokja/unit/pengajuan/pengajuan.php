@@ -35,7 +35,7 @@
 				<div class="alert alert-info">
 					<i class="fas fa-info-circle"></i> <strong>Catatan:</strong> Jika status pengajuan masih <b>'Menunggu Verifikasi'</b>, maka data dapat diubah atau dihapus.
 				</div>
-				<table id="example2" class="table table-bordered table-striped text-center app-table">
+				<table id="example2" class="table table-bordered table-striped text-center app-table" style="width: 100%;">
 					<thead style="background:rgb(0, 0, 0, 1); color: white;">
 						<tr>
 							<th>No</th>

@@ -96,7 +96,7 @@ $query = mysqli_query($config, "
     </div>
     <?php endif; ?>
 
-    <table id="example2" class="table table-bordered table-striped app-table">
+    <table id="example2" class="table table-bordered table-striped app-table" style="width: 100%;">
                     <thead style="background:rgb(0, 0, 0, 1)">
                         <tr class="text-center">
                             <th style="color:white;" responsive>No</th>

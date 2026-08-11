@@ -88,7 +88,7 @@ $pokja_list = mysqli_query($config, "SELECT DISTINCT kode_pokja FROM tb_user WHE
                     </a>
                 </form>
 
-                <table id="example2" class="table table-bordered table-striped text-center app-table">
+                <table id="example2" class="table table-bordered table-striped text-center app-table" style="width: 100%;">
                     <thead style="background:rgb(0, 0, 0, 1); color: white;">
                         <tr>
                             <th>No</th>

@@ -222,7 +222,7 @@ while ($row = mysqli_fetch_assoc($q_trend)) {
                         <div class="row">
                             <div class="col-md-6">
                                 <h4 class="text-center mb-3">Tabel Statistik Pengajuan Dokumen per Pokja</h4>
-                                <table id="example0" class="table table-bordered table-striped">
+                                <table id="example0" class="table table-bordered table-striped" style="width: 100%;">
                                     <thead style="background:rgb(23, 162, 184, 1)">
                                         <tr>
                                             <th width="50">No</th>

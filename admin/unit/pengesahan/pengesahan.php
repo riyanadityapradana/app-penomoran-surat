@@ -483,7 +483,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 						<h4 class="text-center pengesahan-section-title">Tabel Daftar Dokumen yang Telah Disahkan</h4>
 						<!-- TABEL DATA -->
 						<div class="pengesahan-table-scroll">
-							<table id="example0" class="table table-bordered table-striped">
+							<table id="example0" class="table table-bordered table-striped" style="width: 100%;">
 								<thead style="background:rgb(0, 102, 51, 1); color: white;">
 									<tr>
 										<th>No</th>

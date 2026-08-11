@@ -30,7 +30,7 @@
 						</div>
 						<!-- /.card-header -->
 						<div class="card-body">
-							<table id="example2" class="table table-bordered table-striped app-table">
+							<table id="example2" class="table table-bordered table-striped app-table" style="width: 100%;">
 								<thead style="background:rgb(0, 0, 0, 1)">
 									<tr>
 										<th style="text-align: center; color: white;">No</th>

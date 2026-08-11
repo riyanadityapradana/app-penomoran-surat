@@ -347,11 +347,11 @@
 		</script>
 		<script>
 			$(function () {
-				$("#example1").DataTable({
+				$("#example1").css('width', '100%').DataTable({
 					"responsive": true, "lengthChange": false, "autoWidth": false,
 					"buttons": ["excel", "pdf", "print"]
 				}).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
-				$('#example2').DataTable({
+				$('#example2').css('width', '100%').DataTable({
 					"paging": true,
 					"lengthChange": true,
 					"searching": true,
@@ -361,6 +361,22 @@
 					"responsive": false,
 					"scrollX": true,
 				});
+
+				var dataTableResizeTimer;
+				function adjustAppDataTables() {
+					clearTimeout(dataTableResizeTimer);
+					dataTableResizeTimer = setTimeout(function () {
+						$('.table').css('width', '100%');
+						if ($.fn.dataTable) {
+							$.fn.dataTable.tables({ visible: true, api: true })
+								.columns.adjust().draw(false);
+						}
+					}, 150);
+				}
+
+				adjustAppDataTables();
+				$(window).on('load resize orientationchange', adjustAppDataTables);
+				$(document).on('collapsed.lte.pushmenu shown.lte.pushmenu', adjustAppDataTables);
 				// Toastr notification
 				<?php if(isset($_GET['msg'])): ?>
 					toastr.options = {"positionClass": "toast-top-right", "timeOut": "3000"};
