@@ -58,4 +58,9 @@ else if ($_GET['unit'] == "delete_admin"){
 else if ($_GET['unit'] == "rekap"){
   require_once("unit/rekap/rekap.php");
 }
+
+// Master Dokumen Pendukung
+else if ($_GET['unit'] == "dokumen_pendukung"){
+  require_once("unit/dokumen_pendukung/dokumen_pendukung.php");
+}
 ?>

@@ -25,6 +25,19 @@ if (isset($_GET['id_pengajuan'])) {
     exit;
 }
 
+$kode_pokja_standard = trim((string) ($data['kode_pokja'] ?? ''));
+$standard_ep_prefix = $kode_pokja_standard !== '' ? $kode_pokja_standard . '-' : '';
+$standard_ep_detail = trim((string) ($data['elemen_penilaian'] ?? ''));
+
+if ($standard_ep_prefix !== '' && stripos($standard_ep_detail, $standard_ep_prefix) === 0) {
+    $standard_ep_detail = trim(substr($standard_ep_detail, strlen($standard_ep_prefix)));
+}
+
+$panjang_prefix_standard = function_exists('mb_strlen')
+    ? mb_strlen($standard_ep_prefix, 'UTF-8')
+    : strlen($standard_ep_prefix);
+$maksimal_detail_standard = max(1, 100 - $panjang_prefix_standard);
+
 // --- PROSES EDIT UPLOAD PDF (TANPA EMAIL) --- //
 if (isset($_POST['edit_upload_pdf'])) {
     $upload = app_store_uploaded_file(
@@ -79,6 +92,108 @@ if (isset($_POST['edit_nomor_dokumen'])) {
     }
 
     $errMsg = urlencode('Gagal memperbarui nomor dokumen: ' . mysqli_error($config));
+    header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
+    exit;
+}
+
+if (isset($_POST['edit_standard_ep'])) {
+    $elemen_penilaian_detail = isset($_POST['elemen_penilaian_detail']) ? trim($_POST['elemen_penilaian_detail']) : '';
+
+    if ($kode_pokja_standard === '') {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Kode Pokja tidak ditemukan sehingga Standard EP tidak dapat diperbarui!');
+        exit;
+    }
+
+    if ($elemen_penilaian_detail === '') {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Standard EP tidak boleh kosong!');
+        exit;
+    }
+
+    if (stripos($elemen_penilaian_detail, $standard_ep_prefix) === 0) {
+        $elemen_penilaian_detail = trim(substr($elemen_penilaian_detail, strlen($standard_ep_prefix)));
+    }
+
+    $elemen_penilaian_detail = ltrim($elemen_penilaian_detail, "- \t\n\r\0\x0B");
+
+    if ($elemen_penilaian_detail === '') {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Bagian Standard EP setelah Kode Pokja tidak boleh kosong!');
+        exit;
+    }
+
+    $elemen_penilaian = $standard_ep_prefix . $elemen_penilaian_detail;
+
+    $panjang_elemen = function_exists('mb_strlen') ? mb_strlen($elemen_penilaian, 'UTF-8') : strlen($elemen_penilaian);
+
+    if ($panjang_elemen > 100) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Standard EP maksimal 100 karakter!');
+        exit;
+    }
+
+    $update_standard_ep = mysqli_prepare($config, "
+        UPDATE tb_pengajuan_dokumen
+        SET elemen_penilaian = ?
+        WHERE id_pengajuan = ? AND status = 'Selesai'
+    ");
+
+    if ($update_standard_ep) {
+        $id_pengajuan_update = (int) $id_pengajuan;
+        mysqli_stmt_bind_param($update_standard_ep, 'si', $elemen_penilaian, $id_pengajuan_update);
+        $update_berhasil = mysqli_stmt_execute($update_standard_ep);
+        $update_error = mysqli_stmt_error($update_standard_ep);
+        mysqli_stmt_close($update_standard_ep);
+
+        if ($update_berhasil) {
+            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=Standard EP berhasil diperbarui!');
+            exit;
+        }
+
+        $errMsg = urlencode('Gagal memperbarui Standard EP: ' . $update_error);
+    } else {
+        $errMsg = urlencode('Gagal menyiapkan pembaruan Standard EP: ' . mysqli_error($config));
+    }
+
+    header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
+    exit;
+}
+
+if (isset($_POST['edit_judul_dokumen'])) {
+    $judul_dokumen = isset($_POST['judul_dokumen']) ? trim($_POST['judul_dokumen']) : '';
+
+    if ($judul_dokumen === '') {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Judul Dokumen tidak boleh kosong!');
+        exit;
+    }
+
+    $panjang_judul = function_exists('mb_strlen') ? mb_strlen($judul_dokumen, 'UTF-8') : strlen($judul_dokumen);
+
+    if ($panjang_judul > 255) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Judul Dokumen maksimal 255 karakter!');
+        exit;
+    }
+
+    $update_judul = mysqli_prepare($config, "
+        UPDATE tb_pengajuan_dokumen
+        SET judul_dokumen = ?
+        WHERE id_pengajuan = ? AND status = 'Selesai'
+    ");
+
+    if ($update_judul) {
+        $id_pengajuan_update = (int) $id_pengajuan;
+        mysqli_stmt_bind_param($update_judul, 'si', $judul_dokumen, $id_pengajuan_update);
+        $update_berhasil = mysqli_stmt_execute($update_judul);
+        $update_error = mysqli_stmt_error($update_judul);
+        mysqli_stmt_close($update_judul);
+
+        if ($update_berhasil) {
+            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=Judul Dokumen berhasil diperbarui!');
+            exit;
+        }
+
+        $errMsg = urlencode('Gagal memperbarui Judul Dokumen: ' . $update_error);
+    } else {
+        $errMsg = urlencode('Gagal menyiapkan pembaruan Judul Dokumen: ' . mysqli_error($config));
+    }
+
     header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
     exit;
 }
@@ -139,7 +254,12 @@ if (isset($_POST['edit_nomor_dokumen'])) {
                     </tr>
                     <tr>
                         <th>Standard EP</th>
-                        <td><?= htmlspecialchars($data['elemen_penilaian']); ?></td>
+                        <td>
+                            <?= htmlspecialchars($data['elemen_penilaian']); ?>
+                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditStandardEP">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </td>
                     </tr>
                     <tr>
                         <th>Jenis Dokumen</th>
@@ -147,7 +267,12 @@ if (isset($_POST['edit_nomor_dokumen'])) {
                     </tr>
                     <tr>
                         <th>Judul Dokumen</th>
-                        <td><?= htmlspecialchars($data['judul_dokumen']); ?></td>
+                        <td>
+                            <?= htmlspecialchars($data['judul_dokumen']); ?>
+                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditJudulDokumen">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </td>
                     </tr>
                     <tr>
                         <th>Tanggal Dokumen</th>
@@ -191,6 +316,64 @@ if (isset($_POST['edit_nomor_dokumen'])) {
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
                                     <button type="submit" name="edit_nomor_dokumen" class="btn btn-warning">
                                         <i class="fas fa-save"></i> Simpan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="modalEditStandardEP" tabindex="-1" role="dialog" aria-labelledby="modalEditStandardEPLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST">
+                                <div class="modal-header bg-warning">
+                                    <h5 class="modal-title" id="modalEditStandardEPLabel">Edit Standard EP</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group">
+                                        <label class="required-label" for="elemen_penilaian_detail">Standard EP</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control font-weight-bold" value="<?= htmlspecialchars($standard_ep_prefix); ?>" style="max-width: 120px; background-color: #e9ecef;" aria-label="Kode Pokja" title="Kode Pokja tidak dapat diubah" readonly tabindex="-1">
+                                            <input type="text" name="elemen_penilaian_detail" id="elemen_penilaian_detail" class="form-control" maxlength="<?= $maksimal_detail_standard; ?>" value="<?= htmlspecialchars($standard_ep_detail); ?>" placeholder="Contoh: 3 EP 7" required autofocus>
+                                        </div>
+                                        <small class="form-text text-muted">Kode Pokja ditetapkan otomatis dan tidak dapat diubah.</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                    <button type="submit" name="edit_standard_ep" class="btn btn-warning">
+                                        <i class="fas fa-save"></i> Simpan Standard EP
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="modalEditJudulDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditJudulDokumenLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST">
+                                <div class="modal-header bg-warning">
+                                    <h5 class="modal-title" id="modalEditJudulDokumenLabel">Edit Judul Dokumen</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group mb-0">
+                                        <label class="required-label" for="judul_dokumen">Judul Dokumen</label>
+                                        <textarea name="judul_dokumen" id="judul_dokumen" class="form-control" rows="4" maxlength="255" required><?= htmlspecialchars($data['judul_dokumen']); ?></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                    <button type="submit" name="edit_judul_dokumen" class="btn btn-warning">
+                                        <i class="fas fa-save"></i> Simpan Judul Dokumen
                                     </button>
                                 </div>
                             </form>

@@ -228,6 +228,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hapus_pengesahan'])) 
 	header('Location: main_admin.php?unit=pengesahan&err=' . $errMsg);
 	exit;
 }
+
+$filter_pokja_input = isset($_GET['kode_pokja']) && is_scalar($_GET['kode_pokja'])
+	? (string) $_GET['kode_pokja']
+	: '';
+$filter_pokja = ctype_digit($filter_pokja_input)
+	? (int) $filter_pokja_input
+	: 0;
+$filter_standard_ep = isset($_GET['standard_ep']) && is_string($_GET['standard_ep'])
+	? trim($_GET['standard_ep'])
+	: '';
+
+$q_standard_ep = mysqli_query($config, "
+	SELECT DISTINCT p.id_user, p.elemen_penilaian
+	FROM tb_pengajuan_dokumen p
+	WHERE p.status = 'Selesai'
+		AND p.elemen_penilaian IS NOT NULL
+		AND TRIM(p.elemen_penilaian) != ''
+	ORDER BY p.id_user ASC, p.elemen_penilaian ASC
+");
+
+$standard_ep_per_pokja = [];
+$semua_standard_ep = [];
+if ($q_standard_ep) {
+	while ($standard = mysqli_fetch_assoc($q_standard_ep)) {
+		$id_pokja_standard = (string) ((int) $standard['id_user']);
+		$nilai_standard = $standard['elemen_penilaian'];
+		$standard_ep_per_pokja[$id_pokja_standard][] = $nilai_standard;
+		$semua_standard_ep[$nilai_standard] = $nilai_standard;
+	}
+}
+
+foreach ($standard_ep_per_pokja as &$daftar_standard) {
+	$daftar_standard = array_values(array_unique($daftar_standard));
+	natcasesort($daftar_standard);
+	$daftar_standard = array_values($daftar_standard);
+}
+unset($daftar_standard);
+
+$semua_standard_ep = array_values($semua_standard_ep);
+natcasesort($semua_standard_ep);
+$semua_standard_ep = array_values($semua_standard_ep);
+
+$standard_ep_tersedia = $filter_pokja > 0
+	? ($standard_ep_per_pokja[(string) $filter_pokja] ?? [])
+	: $semua_standard_ep;
+
+if ($filter_standard_ep !== '' && !in_array($filter_standard_ep, $standard_ep_tersedia, true)) {
+	$filter_standard_ep = '';
+}
+
+$filter_standard_ep_sql = mysqli_real_escape_string($config, $filter_standard_ep);
 ?>
 
 <!-- Content Header (Page header) -->
@@ -380,30 +431,40 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 			</div>
 
 			<div class="card-body">
-				<!-- FILTER POKJA -->
+				<!-- FILTER POKJA DAN STANDARD EP -->
 				<form method="GET" action="" class="mb-5">
 					<input type="hidden" name="unit" value="pengesahan">
-					<div class="form-group row">
-						<label for="kode_pokja" class="col-sm-2 col-form-label text-left">Cari Berdasarkan:</label>
-						<div class="col-sm-6">
+					<div class="form-row align-items-end">
+						<div class="form-group col-md-4">
+							<label for="kode_pokja">Kode Pokja</label>
 							<select name="kode_pokja" id="kode_pokja" class="form-control" style="border: 2px solid #009688; background-color:#e0f2f1; color:#004d40;">
 								<option value="">-- Semua Pokja --</option>
 								<?php
 								$q_pokja = mysqli_query($config, "SELECT id_user, kode_pokja, nama_lengkap FROM tb_user WHERE level = 'Pokja' ORDER BY kode_pokja ASC, nama_lengkap ASC");
 								while ($p = mysqli_fetch_assoc($q_pokja)) {
-									$selected = (isset($_GET['kode_pokja']) && $_GET['kode_pokja'] == $p['id_user']) ? 'selected' : '';
+									$selected = ($filter_pokja === (int) $p['id_user']) ? 'selected' : '';
 									$label_pokja = $p['kode_pokja'] . ' - ' . $p['nama_lengkap'];
 									echo "<option value='" . htmlspecialchars($p['id_user']) . "' $selected>" . htmlspecialchars($label_pokja) . "</option>";
 								}
 								?>
 							</select>
 						</div>
-						<div class="col-sm-2">
+						<div class="form-group col-md-4">
+							<label for="standard_ep">Standard EP</label>
+							<select name="standard_ep" id="standard_ep" class="form-control" style="border: 2px solid #009688; background-color:#e0f2f1; color:#004d40;">
+								<option value=""><?= $filter_pokja > 0 && empty($standard_ep_tersedia) ? '-- Belum ada Standard EP untuk Pokja ini --' : '-- Semua Standard EP --'; ?></option>
+								<?php foreach ($standard_ep_tersedia as $standard): ?>
+									<?php $selected = ($filter_standard_ep === $standard) ? 'selected' : ''; ?>
+									<option value="<?= htmlspecialchars($standard); ?>" <?= $selected; ?>><?= htmlspecialchars($standard); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+						<div class="form-group col-md-2">
 							<button type="submit" class="btn btn-success btn-block">
 								<i class="fas fa-filter"></i> Tampilkan
 							</button>
 						</div>
-						<div class="col-sm-2">
+						<div class="form-group col-md-2">
 							<a href="main_admin.php?unit=pengesahan" class="btn btn-secondary btn-block">
 								<i class="fas fa-sync"></i> Reset
 							</a>
@@ -419,17 +480,19 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 				$chart_details_pengesahan = [];
 				$chart_group_notes_pengesahan = [];
 				$where_chart = "WHERE u.level = 'Pokja'";
-				$is_filter_pokja = isset($_GET['kode_pokja']) && $_GET['kode_pokja'] != '';
+				$is_filter_pokja = $filter_pokja > 0;
+				$join_filter_standard = $filter_standard_ep !== ''
+					? " AND p.elemen_penilaian = '$filter_standard_ep_sql'"
+					: '';
 				if ($is_filter_pokja) {
-					$kode_pokja = mysqli_real_escape_string($config, $_GET['kode_pokja']);
-					$where_chart .= " AND u.id_user = '$kode_pokja'";
+					$where_chart .= " AND u.id_user = $filter_pokja";
 					$q_chart_pengesahan = mysqli_query($config, "
 						SELECT
 							u.kode_pokja,
 							u.nama_lengkap,
 							COUNT(p.id_pengajuan) AS total_pengesahan
 						FROM tb_user u
-						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'
+						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'$join_filter_standard
 						$where_chart
 						GROUP BY u.id_user
 						ORDER BY total_pengesahan DESC
@@ -441,7 +504,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 							u.nama_lengkap,
 							COUNT(p.id_pengajuan) AS total_pengesahan
 						FROM tb_user u
-						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'
+						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'$join_filter_standard
 						$where_chart
 						GROUP BY u.id_user
 						ORDER BY u.kode_pokja ASC, u.nama_lengkap ASC
@@ -492,6 +555,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 										<th>Judul Dokumen</th>
 										<th>Tgl Dokumen</th>
 										<th>Pokja</th>
+										<th>Standard EP</th>
 										<th>Status</th>
 										<!-- <th>File PDF Final</th> -->
 									</tr>
@@ -502,9 +566,12 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 									$modal_edit_final = '';
 									$where = "WHERE p.status = 'Selesai'";
 
-									if (isset($_GET['kode_pokja']) && $_GET['kode_pokja'] != '') {
-										$kode_pokja = mysqli_real_escape_string($config, $_GET['kode_pokja']);
-										$where .= " AND p.id_user = '$kode_pokja'";
+									if ($filter_pokja > 0) {
+										$where .= " AND p.id_user = $filter_pokja";
+									}
+
+									if ($filter_standard_ep !== '') {
+										$where .= " AND p.elemen_penilaian = '$filter_standard_ep_sql'";
 									}
 
 									$query = mysqli_query($config, "
@@ -544,6 +611,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 												<td>{$row['judul_dokumen']}</td>
 												<td>{$tgl_dok}</td>
 												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
+												<td>" . htmlspecialchars($row['elemen_penilaian']) . "</td>
 												<td><span class='badge badge-primary'>Selesai</span></td>
 											</tr>";
 											$modal_edit_final .= "
@@ -593,7 +661,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 											$no++;
 										}
 									} else {
-										echo "<tr><td colspan='7'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
+										echo "<tr><td colspan='8'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
 									}
 									?>
 								</tbody>
@@ -626,7 +694,42 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script>
+var standardEpPerPokja = <?= json_encode($standard_ep_per_pokja, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var semuaStandardEp = <?= json_encode($semua_standard_ep, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+function sinkronkanStandardEp(pertahankanPilihan) {
+    var pokjaSelect = document.getElementById('kode_pokja');
+    var standardSelect = document.getElementById('standard_ep');
+    if (!pokjaSelect || !standardSelect) {
+        return;
+    }
+
+    var pilihanSebelumnya = pertahankanPilihan ? standardSelect.value : '';
+    var daftarStandard = pokjaSelect.value
+        ? (standardEpPerPokja[pokjaSelect.value] || [])
+        : semuaStandardEp;
+
+    standardSelect.innerHTML = '';
+    var placeholder = pokjaSelect.value && daftarStandard.length === 0
+        ? '-- Belum ada Standard EP untuk Pokja ini --'
+        : '-- Semua Standard EP --';
+    standardSelect.add(new Option(placeholder, ''));
+
+    daftarStandard.forEach(function(standard) {
+        standardSelect.add(new Option(standard, standard));
+    });
+
+    standardSelect.value = daftarStandard.indexOf(pilihanSebelumnya) !== -1
+        ? pilihanSebelumnya
+        : '';
+}
+
 $(document).ready(function() {
+    $('#kode_pokja').on('change', function() {
+        sinkronkanStandardEp(false);
+    });
+    sinkronkanStandardEp(true);
+
     $('#example0').DataTable({
         "pageLength": 10,
         "scrollX": true,
@@ -638,7 +741,8 @@ $(document).ready(function() {
             { "width": "210px", "targets": 3 },
             { "width": "115px", "targets": 4 },
             { "width": "100px", "targets": 5 },
-            { "width": "95px", "targets": 6 }
+            { "width": "150px", "targets": 6 },
+            { "width": "95px", "targets": 7 }
         ],
         "lengthMenu": [[5, 10, 25, 50], [5, 10, 25, 50]],
         "language": {

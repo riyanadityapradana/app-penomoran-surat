@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 11, 2025 at 03:01 PM
--- Server version: 10.4.28-MariaDB
--- PHP Version: 8.0.28
+-- Waktu pembuatan: 13 Agu 2026 pada 15.30
+-- Versi server: 10.4.32-MariaDB
+-- Versi PHP: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,7 +24,33 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `tb_jenis_dokumen`
+-- Struktur dari tabel `tb_dokumen_pendukung`
+--
+
+CREATE TABLE `tb_dokumen_pendukung` (
+  `id_dokumen` int(11) NOT NULL,
+  `nama_dokumen` varchar(150) NOT NULL,
+  `deskripsi` text DEFAULT NULL,
+  `file_word` varchar(255) DEFAULT NULL,
+  `file_pdf` varchar(255) DEFAULT NULL,
+  `status` enum('Aktif','Nonaktif') NOT NULL DEFAULT 'Aktif',
+  `urutan` int(11) NOT NULL DEFAULT 0,
+  `uploaded_by` int(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data untuk tabel `tb_dokumen_pendukung`
+--
+
+INSERT INTO `tb_dokumen_pendukung` (`id_dokumen`, `nama_dokumen`, `deskripsi`, `file_word`, `file_pdf`, `status`, `urutan`, `uploaded_by`, `created_at`, `updated_at`) VALUES
+(4, 'Contoh Cover', 'Cover terbaru untuk Jenis Laporan, Pedoman, Panduan', 'dokumen_pendukung_12_word_20260813212629_2d056484e1cef8a5.docx', NULL, 'Aktif', 3, 12, '2026-08-13 21:26:29', '2026-08-13 21:26:29');
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `tb_jenis_dokumen`
 --
 
 CREATE TABLE `tb_jenis_dokumen` (
@@ -34,21 +60,19 @@ CREATE TABLE `tb_jenis_dokumen` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 --
--- Dumping data for table `tb_jenis_dokumen`
+-- Dumping data untuk tabel `tb_jenis_dokumen`
 --
 
 INSERT INTO `tb_jenis_dokumen` (`id_jenis`, `nama_jenis`, `kode_jenis`) VALUES
 (1, 'SPO', 'SPO'),
-(2, 'Laporan', 'LAP'),
-(3, 'SK', 'SK'),
-(4, 'Pedoman', 'PED'),
-(5, 'Panduan', 'PAD'),
-(6, 'Undangan', 'UND');
+(2, 'SK', 'SK'),
+(3, 'Pedoman', 'PED'),
+(4, 'Panduan', 'PAD');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `tb_pengajuan_dokumen`
+-- Struktur dari tabel `tb_pengajuan_dokumen`
 --
 
 CREATE TABLE `tb_pengajuan_dokumen` (
@@ -65,13 +89,14 @@ CREATE TABLE `tb_pengajuan_dokumen` (
   `tanggal_disetujui` datetime DEFAULT NULL,
   `nomor_surat` varchar(100) DEFAULT NULL,
   `file_final` varchar(255) DEFAULT NULL,
-  `catatan_admin` text DEFAULT NULL
+  `catatan_admin` text DEFAULT NULL,
+  `no_tlp` varchar(15) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `tb_user`
+-- Struktur dari tabel `tb_user`
 --
 
 CREATE TABLE `tb_user` (
@@ -85,7 +110,7 @@ CREATE TABLE `tb_user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 --
--- Dumping data for table `tb_user`
+-- Dumping data untuk tabel `tb_user`
 --
 
 INSERT INTO `tb_user` (`id_user`, `username`, `password`, `nama_lengkap`, `level`, `kode_pokja`, `email_user`) VALUES
@@ -113,13 +138,21 @@ INSERT INTO `tb_user` (`id_user`, `username`, `password`, `nama_lengkap`, `level
 --
 
 --
--- Indexes for table `tb_jenis_dokumen`
+-- Indeks untuk tabel `tb_dokumen_pendukung`
+--
+ALTER TABLE `tb_dokumen_pendukung`
+  ADD PRIMARY KEY (`id_dokumen`),
+  ADD KEY `idx_dokumen_status_urutan` (`status`,`urutan`),
+  ADD KEY `idx_dokumen_uploaded_by` (`uploaded_by`);
+
+--
+-- Indeks untuk tabel `tb_jenis_dokumen`
 --
 ALTER TABLE `tb_jenis_dokumen`
   ADD PRIMARY KEY (`id_jenis`);
 
 --
--- Indexes for table `tb_pengajuan_dokumen`
+-- Indeks untuk tabel `tb_pengajuan_dokumen`
 --
 ALTER TABLE `tb_pengajuan_dokumen`
   ADD PRIMARY KEY (`id_pengajuan`),
@@ -127,40 +160,52 @@ ALTER TABLE `tb_pengajuan_dokumen`
   ADD KEY `id_jenis` (`id_jenis`);
 
 --
--- Indexes for table `tb_user`
+-- Indeks untuk tabel `tb_user`
 --
 ALTER TABLE `tb_user`
   ADD PRIMARY KEY (`id_user`),
   ADD UNIQUE KEY `username` (`username`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- AUTO_INCREMENT untuk tabel yang dibuang
 --
 
 --
--- AUTO_INCREMENT for table `tb_jenis_dokumen`
+-- AUTO_INCREMENT untuk tabel `tb_dokumen_pendukung`
+--
+ALTER TABLE `tb_dokumen_pendukung`
+  MODIFY `id_dokumen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT untuk tabel `tb_jenis_dokumen`
 --
 ALTER TABLE `tb_jenis_dokumen`
-  MODIFY `id_jenis` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id_jenis` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `tb_pengajuan_dokumen`
+-- AUTO_INCREMENT untuk tabel `tb_pengajuan_dokumen`
 --
 ALTER TABLE `tb_pengajuan_dokumen`
-  MODIFY `id_pengajuan` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_pengajuan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `tb_user`
+-- AUTO_INCREMENT untuk tabel `tb_user`
 --
 ALTER TABLE `tb_user`
   MODIFY `id_user` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
--- Constraints for dumped tables
+-- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
 --
 
 --
--- Constraints for table `tb_pengajuan_dokumen`
+-- Ketidakleluasaan untuk tabel `tb_dokumen_pendukung`
+--
+ALTER TABLE `tb_dokumen_pendukung`
+  ADD CONSTRAINT `fk_dokumen_pendukung_uploader` FOREIGN KEY (`uploaded_by`) REFERENCES `tb_user` (`id_user`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `tb_pengajuan_dokumen`
 --
 ALTER TABLE `tb_pengajuan_dokumen`
   ADD CONSTRAINT `tb_pengajuan_dokumen_ibfk_1` FOREIGN KEY (`id_user`) REFERENCES `tb_user` (`id_user`) ON DELETE CASCADE,

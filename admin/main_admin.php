@@ -167,6 +167,11 @@
 									<i class="nav-icon fas fa-book" style="color: black;"></i><p style="color: black;">Rekap Dokumen</p>
 								</a>
 							</li>
+							<li class="nav-item menu-open">
+								<a href="main_admin.php?unit=dokumen_pendukung" class="nav-link" style="background:rgb(231, 234, 232)">
+									<i class="nav-icon fas fa-folder-open" style="color: black;"></i><p style="color: black;">Dokumen Pendukung</p>
+								</a>
+							</li>
 							<!--<li class="nav-item">
 								<a href="#" class="nav-link">
 									<i class="nav-icon fas fa-folder" style="color: black;"></i>
