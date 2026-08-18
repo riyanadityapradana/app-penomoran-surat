@@ -12,8 +12,8 @@ $checkNoTlpColumn = mysqli_query($config, "SHOW COLUMNS FROM tb_pengajuan_dokume
 $hasNoTlpColumn = $checkNoTlpColumn && mysqli_num_rows($checkNoTlpColumn) > 0;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $id_user = mysqli_real_escape_string($config, $_POST['id_user']);
-    $id_jenis = mysqli_real_escape_string($config, $_POST['id_jenis']);
+    $id_user = (int) $_SESSION['id_user'];
+    $id_jenis = isset($_POST['id_jenis']) ? (int) $_POST['id_jenis'] : 0;
     $judul_dokumen = mysqli_real_escape_string($config, $_POST['judul_dokumen']);
     $tanggal_dok = mysqli_real_escape_string($config, $_POST['tanggal_dokumen']);
     $tanggal_ajuan = date('Y-m-d H:i:s');
@@ -22,6 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $elemen_penilaian_input = mysqli_real_escape_string($config, $_POST['elemen_penilaian']);
     $elemen_penilaian = $kode_pokja . '-' . $elemen_penilaian_input;
     $status = 'Menunggu Verifikasi';
+
+    $stmtJenis = mysqli_prepare($config, 'SELECT nama_jenis, kode_jenis FROM tb_jenis_dokumen WHERE id_jenis = ? LIMIT 1');
+    mysqli_stmt_bind_param($stmtJenis, 'i', $id_jenis);
+    mysqli_stmt_execute($stmtJenis);
+    $jenis_data = mysqli_fetch_assoc(mysqli_stmt_get_result($stmtJenis));
+    mysqli_stmt_close($stmtJenis);
+
+    if (!$jenis_data || trim($jenis_data['kode_jenis']) === '') {
+        echo "<script>alert('Jenis dokumen tidak valid. Silakan pilih kembali dari daftar.');window.location='main_pokja.php?unit=create_pengajuan';</script>";
+        exit;
+    }
 
     if ($hasNoTlpColumn && !app_validate_phone_id($no_tel)) {
         echo "<script>alert('Nomor telepon tidak valid. Gunakan format 08xxxxxxxxxx atau 62xxxxxxxxxx.');window.location='main_pokja.php?unit=create_pengajuan';</script>";
@@ -73,8 +84,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $query = "INSERT INTO tb_pengajuan_dokumen (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $values) . ")";
 
         if (mysqli_query($config, $query)) {
-            $jenis_result = mysqli_query($config, "SELECT nama_jenis FROM tb_jenis_dokumen WHERE id_jenis = '$id_jenis' LIMIT 1");
-            $jenis_data = mysqli_fetch_assoc($jenis_result);
             $nama_jenis = $jenis_data['nama_jenis'] ?? '-';
             $nama_pengaju = $_SESSION['nama_lengkap'] ?? $kode_pokja;
             $admin_link = app_base_url() . '/admin/main_admin.php?unit=pengajuan';
@@ -185,9 +194,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <select name="id_jenis" class="form-control select2" required>
                                     <option value="">-- Pilih Jenis Dokumen --</option>
                                     <?php
-                                    $qjenis = mysqli_query($config, "SELECT * FROM tb_jenis_dokumen");
+                                    $qjenis = mysqli_query($config, "SELECT id_jenis, nama_jenis, kode_jenis FROM tb_jenis_dokumen ORDER BY nama_jenis ASC");
                                     while ($r = mysqli_fetch_assoc($qjenis)) {
-                                        echo "<option value='{$r['id_jenis']}'>{$r['nama_jenis']}</option>";
+                                        echo '<option value="' . (int) $r['id_jenis'] . '">' . htmlspecialchars($r['nama_jenis']) . ' (' . htmlspecialchars($r['kode_jenis']) . ')</option>';
                                     }
                                     ?>
                                 </select>

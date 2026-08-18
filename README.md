@@ -93,6 +93,9 @@
 | ---------- | ------- | ------------------ |
 | id_jenis   | INT     | Primary key        |
 | nama_jenis | VARCHAR | Nama jenis dokumen |
+| kode_jenis | VARCHAR | Kode pada nomor dokumen, termasuk DB untuk Dokumen Bukti |
+
+Jenis dokumen yang didukung: SPO, Laporan (LAP), SK, Pedoman (PED), Panduan (PAD), Undangan (UND), dan Dokumen Bukti (DB). Jenis selain SK menggunakan format nomor `A/NNN/KODE/POKJA/BULAN/TAHUN` dengan urutan terpisah untuk setiap kode jenis dan Pokja.
 
 #### tb_pengajuan_dokumen
 

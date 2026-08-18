@@ -27,8 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
     $catatan_admin = mysqli_real_escape_string($config, $_POST['catatan_admin']);
     $tanggal_disetujui = date('Y-m-d H:i:s');
 
-    $jenis_dokumen = strtoupper($data['kode_jenis']);
-    $kode_pokja = strtoupper($data['kode_pokja']);
+    $jenis_dokumen = strtoupper(trim((string) $data['kode_jenis']));
+    $kode_pokja = strtoupper(trim((string) $data['kode_pokja']));
+
+    if (!preg_match('/^[A-Z0-9_-]{1,10}$/', $jenis_dokumen) || !preg_match('/^[A-Z0-9_-]{1,20}$/', $kode_pokja)) {
+        header('Location: main_admin.php?unit=pengajuan&err=Kode jenis dokumen atau kode Pokja tidak valid!');
+        exit;
+    }
     $bulan_romawi = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'];
     $bulan = $bulan_romawi[(int) date('n')];
     $tahun = date('Y');
@@ -54,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
 
         $nomor_surat = "$urutan/SK/DIR/$bulan/$tahun_dua_digit-A0";
     } else {
+        // Semua jenis selain SK, termasuk Dokumen Bukti (DB), memiliki seri nomor sendiri per Pokja dan tahun.
         $nomor_pattern = "A/%/$jenis_dokumen/$kode_pokja/%/$tahun";
         $q_nomor = mysqli_query($config, "
             SELECT MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p.nomor_surat, '/', 2), '/', -1) AS UNSIGNED)) AS last_urutan

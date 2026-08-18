@@ -67,7 +67,10 @@ INSERT INTO `tb_jenis_dokumen` (`id_jenis`, `nama_jenis`, `kode_jenis`) VALUES
 (1, 'SPO', 'SPO'),
 (2, 'SK', 'SK'),
 (3, 'Pedoman', 'PED'),
-(4, 'Panduan', 'PAD');
+(4, 'Panduan', 'PAD'),
+(5, 'Laporan', 'LAP'),
+(6, 'Undangan', 'UND'),
+(7, 'Dokumen Bukti', 'DB');
 
 -- --------------------------------------------------------
 
@@ -180,7 +183,7 @@ ALTER TABLE `tb_dokumen_pendukung`
 -- AUTO_INCREMENT untuk tabel `tb_jenis_dokumen`
 --
 ALTER TABLE `tb_jenis_dokumen`
-  MODIFY `id_jenis` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id_jenis` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT untuk tabel `tb_pengajuan_dokumen`

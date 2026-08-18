@@ -35,7 +35,7 @@ if ($data['status'] != 'Menunggu Verifikasi') {
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $id_pengajuan = mysqli_real_escape_string($config, $data['id_pengajuan']);
-    $id_jenis = mysqli_real_escape_string($config, $_POST['id_jenis']);
+    $id_jenis = isset($_POST['id_jenis']) ? (int) $_POST['id_jenis'] : 0;
     $judul_dokumen = mysqli_real_escape_string($config, $_POST['judul_dokumen']);
     $tanggal_dokumen = mysqli_real_escape_string($config, $_POST['tanggal_dokumen']);
     $no_tel = mysqli_real_escape_string($config, $_POST['no_telepon'] ?? '');
@@ -44,6 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $file_draft_lama = mysqli_real_escape_string($config, $_POST['file_draft_lama']);
 
     $file_draft = $file_draft_lama;
+
+    $stmtJenis = mysqli_prepare($config, 'SELECT id_jenis FROM tb_jenis_dokumen WHERE id_jenis = ? AND kode_jenis <> \'\' LIMIT 1');
+    mysqli_stmt_bind_param($stmtJenis, 'i', $id_jenis);
+    mysqli_stmt_execute($stmtJenis);
+    $jenisValid = mysqli_fetch_assoc(mysqli_stmt_get_result($stmtJenis));
+    mysqli_stmt_close($stmtJenis);
+
+    if (!$jenisValid) {
+        echo "<script>alert('Jenis dokumen tidak valid. Silakan pilih kembali dari daftar.');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
+        exit;
+    }
 
     if ($hasNoTlpColumn && !app_validate_phone_id($no_tel)) {
         echo "<script>alert('Nomor telepon tidak valid. Gunakan format 08xxxxxxxxxx atau 62xxxxxxxxxx.');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
@@ -143,10 +154,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <select name="id_jenis" class="form-control" required>
                                     <option value="">-- Pilih Jenis Dokumen --</option>
                                     <?php
-                                    $qJenis = mysqli_query($config, "SELECT * FROM tb_jenis_dokumen");
+                                    $qJenis = mysqli_query($config, "SELECT id_jenis, nama_jenis, kode_jenis FROM tb_jenis_dokumen ORDER BY nama_jenis ASC");
                                     while ($j = mysqli_fetch_assoc($qJenis)) {
                                         $selected = ($j['id_jenis'] == $data['id_jenis']) ? 'selected' : '';
-                                        echo "<option value='{$j['id_jenis']}' {$selected}>{$j['nama_jenis']}</option>";
+                                        echo '<option value="' . (int) $j['id_jenis'] . '" ' . $selected . '>' . htmlspecialchars($j['nama_jenis']) . ' (' . htmlspecialchars($j['kode_jenis']) . ')</option>';
                                     }
                                     ?>
                                 </select>

@@ -238,9 +238,11 @@ while ($row = mysqli_fetch_assoc($q_trend)) {
                                         $warna_jenis = [
                                             'SK' => 'badge-primary',
                                             'SPO' => 'badge-success',
+                                            'Laporan' => 'badge-secondary',
                                             'Panduan' => 'badge-warning',
                                             'Pedoman' => 'badge-info',
-                                            // Tambahkan jenis dokumen lainnya jika ada
+                                            'Undangan' => 'badge-danger',
+                                            'Dokumen Bukti' => 'badge-dark',
                                         ];
                                         mysqli_data_seek($q_rekap, 0); // Reset pointer untuk tabel
                                         if (mysqli_num_rows($q_rekap) > 0):
