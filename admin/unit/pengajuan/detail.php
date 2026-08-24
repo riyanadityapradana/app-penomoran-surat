@@ -4,6 +4,9 @@ require_once("../config/notifikasi.php");
 require_once("../config/upload_helper.php");
 require_once("../config/wa_helper.php");
 
+$q_tanggal_pengesahan = mysqli_query($config, "SHOW COLUMNS FROM tb_pengajuan_dokumen LIKE 'tanggal_pengesahan'");
+$has_tanggal_pengesahan = $q_tanggal_pengesahan && mysqli_num_rows($q_tanggal_pengesahan) > 0;
+
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
     $query = mysqli_query($config, "
@@ -141,10 +144,14 @@ if (isset($_POST['upload_final'])) {
 
             $word_name = mysqli_real_escape_string($config, $uploadWord['filename']);
             $pdf_name = mysqli_real_escape_string($config, $uploadPdf['filename']);
+			$set_tanggal_pengesahan = $has_tanggal_pengesahan ? ', tanggal_pengesahan=NOW()' : '';
 
             mysqli_query($config, "
                 UPDATE tb_pengajuan_dokumen
-                SET file_draft='$word_name', file_final='$pdf_name', status='Selesai'
+                SET file_draft='$word_name',
+                    file_final='$pdf_name',
+					status='Selesai'
+					$set_tanggal_pengesahan
                 WHERE id_pengajuan='$id_pengajuan'
             ");
 

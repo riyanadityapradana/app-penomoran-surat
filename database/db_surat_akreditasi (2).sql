@@ -90,6 +90,7 @@ CREATE TABLE `tb_pengajuan_dokumen` (
   `tanggal_dokumen` date NOT NULL,
   `tanggal_ajuan` datetime DEFAULT current_timestamp(),
   `tanggal_disetujui` datetime DEFAULT NULL,
+  `tanggal_pengesahan` datetime DEFAULT NULL,
   `nomor_surat` varchar(100) DEFAULT NULL,
   `file_final` varchar(255) DEFAULT NULL,
   `catatan_admin` text DEFAULT NULL,

@@ -1,6 +1,12 @@
 <?php
 require_once("../config/upload_helper.php");
 
+$q_tanggal_pengesahan = mysqli_query($config, "SHOW COLUMNS FROM tb_pengajuan_dokumen LIKE 'tanggal_pengesahan'");
+$has_tanggal_pengesahan = $q_tanggal_pengesahan && mysqli_num_rows($q_tanggal_pengesahan) > 0;
+$tanggal_pengesahan_sql = $has_tanggal_pengesahan
+	? 'COALESCE(p.tanggal_pengesahan, p.tanggal_disetujui, p.tanggal_ajuan)'
+	: 'COALESCE(p.tanggal_disetujui, p.tanggal_ajuan)';
+
 function hapus_file_pengesahan($filename)
 {
 	if (empty($filename)) {
@@ -410,6 +416,26 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 		padding: 0;
 	}
 
+	.pengesahan-date {
+		display: block;
+		margin-top: .35rem;
+		color: #667085;
+		font-size: .78rem;
+		line-height: 1.35;
+	}
+
+	.pengesahan-new-badge {
+		display: inline-flex;
+		align-items: center;
+		margin-top: .4rem;
+		padding: .28rem .5rem;
+		border-radius: 4px;
+		background: #dcfce7;
+		color: #166534;
+		font-size: .72rem;
+		font-weight: 700;
+	}
+
 	@media (max-width: 991.98px) {
 		.pengesahan-chart-wrap {
 			margin-top: 1.5rem;
@@ -575,17 +601,26 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 									}
 
 									$query = mysqli_query($config, "
-										SELECT p.*, j.nama_jenis, k.kode_pokja, k.nama_lengkap
+										SELECT p.*, j.nama_jenis, k.kode_pokja, k.nama_lengkap,
+											$tanggal_pengesahan_sql AS tanggal_pengesahan_efektif
 										FROM tb_pengajuan_dokumen p
 										LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
 										LEFT JOIN tb_user k ON p.id_user = k.id_user
 										$where
-										ORDER BY p.id_pengajuan DESC
+										ORDER BY tanggal_pengesahan_efektif DESC, p.id_pengajuan DESC
 									");
 
 									if (mysqli_num_rows($query) > 0) {
 										while ($row = mysqli_fetch_assoc($query)) {
 											$tgl_dok = date('d-m-Y', strtotime($row['tanggal_dokumen']));
+											$tanggal_pengesahan = !empty($row['tanggal_pengesahan_efektif'])
+												? date('d-m-Y', strtotime($row['tanggal_pengesahan_efektif']))
+												: '-';
+											$is_baru = !empty($row['tanggal_pengesahan_efektif'])
+												&& strtotime($row['tanggal_pengesahan_efektif']) >= strtotime('-30 days');
+											$jenis_dokumen_html = htmlspecialchars($row['nama_jenis'])
+												. "<span class='pengesahan-date'><i class='far fa-calendar-check mr-1'></i>Disahkan {$tanggal_pengesahan}</span>"
+												. ($is_baru ? "<span class='pengesahan-new-badge'><i class='fas fa-star mr-1'></i>Baru</span>" : '');
 											echo "<tr>
 												<td>{$no}</td>
 												<td>
@@ -607,7 +642,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 														</button>
 													</form>
 												</td>
-												<td>{$row['nama_jenis']}</td>
+												<td>{$jenis_dokumen_html}</td>
 												<td>{$row['judul_dokumen']}</td>
 												<td>{$tgl_dok}</td>
 												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
@@ -734,6 +769,7 @@ $(document).ready(function() {
         "pageLength": 10,
         "scrollX": true,
         "autoWidth": false,
+		"order": [],
         "columnDefs": [
             { "width": "60px", "targets": 0 },
             { "width": "180px", "targets": 1 },

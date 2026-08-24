@@ -108,6 +108,7 @@ Jenis dokumen yang didukung: SPO, Laporan (LAP), SK, Pedoman (PED), Panduan (PAD
 | file_draft      | VARCHAR | Nama file draft dokumen                    |
 | tanggal_dokumen | DATE    | Tanggal dokumen                            |
 | tanggal_ajuan   | DATE    | Tanggal pengajuan                          |
+| tanggal_pengesahan | DATETIME | Waktu file final disahkan dan status menjadi Selesai |
 | catatan         | TEXT    | Catatan dari user pokja                    |
 | status          | VARCHAR | Status pengajuan                           |
 | nomor_surat     | VARCHAR | Nomor dokumen (diisi admin)                |
