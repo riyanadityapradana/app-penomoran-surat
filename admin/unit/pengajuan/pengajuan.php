@@ -1,6 +1,10 @@
 <?php
 require_once("../config/koneksi.php"); // sesuaikan path
 
+if (empty($_SESSION['pengajuan_admin_csrf'])) {
+    $_SESSION['pengajuan_admin_csrf'] = bin2hex(random_bytes(32));
+}
+
 // --- PROSES FILTER DENGAN POST --- //
 $kode_pokja_filter = '';
 
@@ -41,6 +45,28 @@ $query = mysqli_query($config, "
     ORDER BY p.id_pengajuan DESC
 ");
 ?>
+
+<style>
+    .pengajuan-title-cell {
+        min-width: 280px;
+        white-space: normal !important;
+    }
+
+    .pengajuan-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+
+    .pengajuan-row-actions form {
+        margin: 0;
+    }
+
+    .pengajuan-row-actions .btn {
+        min-width: 34px;
+    }
+</style>
 
 <section class="content">
     <div class="container-fluid">
@@ -106,7 +132,6 @@ $query = mysqli_query($config, "
                             <th style="color:white;" responsive>No Surat</th>
                             <th style="color:white;" responsive>Status</th>
 							<th style="color:white;" responsive>File Draft</th>
-                            <th style="color:white;" responsive>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -114,14 +139,37 @@ $query = mysqli_query($config, "
                         if (mysqli_num_rows($query) > 0) {
                             $no = 1;
                             while ($row = mysqli_fetch_assoc($query)) {
+                                $idPengajuan = (int) $row['id_pengajuan'];
+                                $judulDokumen = htmlspecialchars($row['judul_dokumen']);
+                                $kodePokja = htmlspecialchars($row['kode_pokja']);
+                                $namaJenis = htmlspecialchars($row['nama_jenis']);
+                                $nomorSurat = htmlspecialchars($row['nomor_surat'] ?? '');
+                                $fileDraft = basename((string) ($row['file_draft'] ?? ''));
                                 echo "<tr>
                                         <td class='text-center'>{$no}</td>
                                         <td class='text-center'>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
-                                        <td class='text-left'>{$row['kode_pokja']}<br><small style='color: #6c757d;'>Jenis Dokumen: {$row['nama_jenis']}</small></td>
-                                        <td class='text-long'>{$row['judul_dokumen']}</td>
+                                        <td class='text-left'>{$kodePokja}<br><small style='color: #6c757d;'>Jenis Dokumen: {$namaJenis}</small></td>
+                                        <td class='text-long pengajuan-title-cell'>
+                                            <div>{$judulDokumen}</div>
+                                            <div class='pengajuan-row-actions'>
+                                                <a href='main_admin.php?unit=detail_pengajuan&id_pengajuan={$idPengajuan}' class='btn btn-sm btn-info' title='Lihat detail dokumen' aria-label='Lihat detail dokumen'>
+                                                    <i class='fas fa-eye'></i> Detail
+                                                </a>
+                                                <a href='main_admin.php?unit=update_pengajuan&id_pengajuan={$idPengajuan}' class='btn btn-sm btn-warning' title='Edit dokumen' aria-label='Edit dokumen'>
+                                                    <i class='fas fa-edit'></i> Edit
+                                                </a>
+                                                <form method='POST' action='main_admin.php?unit=delete_pengajuan' onsubmit=\"return confirm('Hapus pengajuan ini beserta file terkait? Data yang dihapus tidak dapat dikembalikan.');\">
+                                                    <input type='hidden' name='csrf_token' value='" . htmlspecialchars($_SESSION['pengajuan_admin_csrf']) . "'>
+                                                    <input type='hidden' name='id_pengajuan' value='{$idPengajuan}'>
+                                                    <button type='submit' class='btn btn-sm btn-danger' title='Hapus dokumen' aria-label='Hapus dokumen'>
+                                                        <i class='fas fa-trash'></i> Hapus
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
                                         <td class='text-center'>";
                                         if (!empty($row['nomor_surat'])) {
-                                            echo "<span class='badge badge-defauld' style='color: black; font-weight: bold;'>" . htmlspecialchars($row['nomor_surat']) . "</span>";
+                                            echo "<span class='badge badge-defauld' style='color: black; font-weight: bold;'>{$nomorSurat}</span>";
                                         } else {
                                             echo "<span class='badge badge-danger' style='color: white; font-weight: bold;'>-</span>";
                                         }
@@ -143,27 +191,19 @@ $query = mysqli_query($config, "
 								echo "</td>
 									<td class='text-center'>";
 								if (!empty($row['file_draft'])) {
-									echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' 
+									echo "<a href='../assets/upload/draft_word/" . rawurlencode($fileDraft) . "'
 											target='_blank' class='btn btn-sm btn-info'>
 											<i class='fas fa-file-word'></i> Download
 										  </a>";
 								} else {
 									echo "-";
 								}
-								
-									
-                                echo "</td>
-                                      <td class='text-center'>
-                                        <a href='main_admin.php?unit=detail_pengajuan&id_pengajuan={$row['id_pengajuan']}' 
-                                           class='btn btn-sm btn-info'>
-                                           <i class='fas fa-eye'></i> Detail
-                                        </a>
-                                      </td>
-                                    </tr>";
+
+                                echo "</td></tr>";
                                 $no++;
                             }
                         } else {
-                            echo "<tr><td colspan='9' class='text-center'>Belum ada data pengajuan</td></tr>";
+                            echo "<tr><td colspan='7' class='text-center'>Belum ada data pengajuan</td></tr>";
                         }
                         ?>
                     </tbody>

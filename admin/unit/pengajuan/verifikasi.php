@@ -34,13 +34,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
         header('Location: main_admin.php?unit=pengajuan&err=Kode jenis dokumen atau kode Pokja tidak valid!');
         exit;
     }
+
+    if ($data['status'] !== 'Menunggu Verifikasi' || trim((string) ($data['nomor_surat'] ?? '')) !== '') {
+        header('Location: main_admin.php?unit=pengajuan&err=Pengajuan ini sudah pernah diverifikasi atau tidak lagi menunggu verifikasi!');
+        exit;
+    }
+
+    // Kunci seri per jenis dokumen dan Pokja agar dua verifikasi bersamaan tidak mendapat nomor yang sama.
+    $lock_name = 'surat_' . substr(hash('sha256', $jenis_dokumen . '|' . $kode_pokja), 0, 50);
+    $lock_name_sql = mysqli_real_escape_string($config, $lock_name);
+    $q_lock = mysqli_query($config, "SELECT GET_LOCK('$lock_name_sql', 10) AS lock_diperoleh");
+    $lock_result = $q_lock ? mysqli_fetch_assoc($q_lock) : null;
+    if (!$lock_result || (int) $lock_result['lock_diperoleh'] !== 1) {
+        header('Location: main_admin.php?unit=pengajuan&err=Penomoran sedang diproses oleh pengguna lain. Silakan coba kembali!');
+        exit;
+    }
+
     $bulan_romawi = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'];
     $bulan = $bulan_romawi[(int) date('n')];
     $tahun = date('Y');
     $tahun_dua_digit = date('y');
 
     if ($jenis_dokumen == 'SK') {
-        $nomor_pattern = "%/SK/DIR/%/$tahun_dua_digit-A0";
+        // Nomor urut SK berlanjut lintas tahun; tahun hanya berubah pada bagian belakang nomor.
+        $nomor_pattern = "%/SK/DIR/%/%-A0";
         $q_nomor = mysqli_query($config, "
             SELECT MAX(CAST(SUBSTRING_INDEX(p.nomor_surat, '/', 1) AS UNSIGNED)) AS last_urutan
             FROM tb_pengajuan_dokumen p
@@ -53,14 +70,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
               AND p.nomor_surat LIKE '$nomor_pattern'
         ");
 
+        if (!$q_nomor) {
+            $nomor_error = mysqli_error($config);
+            mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+            header('Location: main_admin.php?unit=pengajuan&err=' . urlencode('Gagal membaca urutan nomor SK: ' . $nomor_error));
+            exit;
+        }
+
         $row_nomor = mysqli_fetch_assoc($q_nomor);
         $last_urutan = isset($row_nomor['last_urutan']) ? (int) $row_nomor['last_urutan'] : 0;
         $urutan = str_pad($last_urutan + 1, 3, '0', STR_PAD_LEFT);
 
         $nomor_surat = "$urutan/SK/DIR/$bulan/$tahun_dua_digit-A0";
     } else {
-        // Semua jenis selain SK, termasuk Dokumen Bukti (DB), memiliki seri nomor sendiri per Pokja dan tahun.
-        $nomor_pattern = "A/%/$jenis_dokumen/$kode_pokja/%/$tahun";
+        // Setiap jenis memiliki seri sendiri per Pokja, tetapi nomor urutnya tetap berlanjut lintas tahun.
+        $nomor_pattern = "A/%/$jenis_dokumen/$kode_pokja/%/%";
         $q_nomor = mysqli_query($config, "
             SELECT MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p.nomor_surat, '/', 2), '/', -1) AS UNSIGNED)) AS last_urutan
             FROM tb_pengajuan_dokumen p
@@ -72,6 +96,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
               AND p.nomor_surat != ''
               AND p.nomor_surat LIKE '$nomor_pattern'
         ");
+
+        if (!$q_nomor) {
+            $nomor_error = mysqli_error($config);
+            mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+            header('Location: main_admin.php?unit=pengajuan&err=' . urlencode('Gagal membaca urutan nomor dokumen: ' . $nomor_error));
+            exit;
+        }
 
         $row_nomor = mysqli_fetch_assoc($q_nomor);
         $last_urutan = isset($row_nomor['last_urutan']) ? (int) $row_nomor['last_urutan'] : 0;
@@ -87,9 +118,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
             catatan_admin = '$catatan_admin',
             nomor_surat = '$nomor_surat'
         WHERE id_pengajuan = '$id_pengajuan'
+          AND status = 'Menunggu Verifikasi'
+          AND (nomor_surat IS NULL OR TRIM(nomor_surat) = '')
     ");
 
-    if ($update) {
+    $updated_rows = $update ? mysqli_affected_rows($config) : 0;
+    $update_error = $update ? '' : mysqli_error($config);
+    mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+
+    if ($update && $updated_rows === 1) {
         $pokjaLink = app_base_url() . '/pokja/main_pokja.php?unit=pengajuan';
         $emailSubject = 'Pengajuan Dokumen Disetujui - ' . $data['judul_dokumen'];
         $emailBody = "
@@ -132,8 +169,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
         echo "window.location.href = " . json_encode($redirectUrl) . ";";
         echo "</script>";
         exit;
+    } elseif ($update) {
+        echo "<script>alert('Pengajuan sudah diproses sebelumnya. Nomor surat tidak diubah.');window.location='main_admin.php?unit=pengajuan';</script>";
+        exit;
     } else {
-        echo "<script>alert('Gagal memverifikasi pengajuan: " . mysqli_error($config) . "');</script>";
+        echo "<script>alert('Gagal memverifikasi pengajuan: " . addslashes($update_error) . "');</script>";
     }
 }
 ?>
