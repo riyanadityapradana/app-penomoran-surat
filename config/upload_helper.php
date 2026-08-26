@@ -113,3 +113,24 @@ function app_pengajuan_draft_upload_rules($kodeJenis)
         'max_bytes' => 10 * 1024 * 1024
     ];
 }
+
+function app_validate_final_upload_selection($kodeJenis, $hasWord, $hasPdf)
+{
+    $isDokumenBukti = strtoupper(trim((string) $kodeJenis)) === 'DB';
+
+    if ($isDokumenBukti && !$hasWord && !$hasPdf) {
+        return [
+            'ok' => false,
+            'message' => 'Dokumen Bukti wajib mengunggah minimal satu file final: Word atau PDF.'
+        ];
+    }
+
+    if (!$isDokumenBukti && (!$hasWord || !$hasPdf)) {
+        return [
+            'ok' => false,
+            'message' => 'Dokumen selain Dokumen Bukti wajib mengunggah file final Word dan PDF.'
+        ];
+    }
+
+    return ['ok' => true, 'message' => ''];
+}

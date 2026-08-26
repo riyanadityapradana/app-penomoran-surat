@@ -218,19 +218,22 @@ if (isset($_POST['edit_judul_dokumen'])) {
                         </form>
                     <?php endif; ?>
                     <?php
-                    $pdfHeaderFile = !empty($data['file_final']) ? $data['file_final'] : $data['file_draft'];
-                    $pdfHeaderFolder = file_exists('../assets/upload/draft_final/' . $pdfHeaderFile) ? 'draft_final' : 'draft_word';
-                    $hasWordFinal = !empty($data['file_draft'])
-                        && preg_match('/\.(doc|docx)$/i', $data['file_draft'])
-                        && file_exists('../assets/upload/draft_final/' . $data['file_draft']);
+                    $pdfHeaderFile = !empty($data['file_final']) ? basename($data['file_final']) : '';
+                    $wordHeaderFile = !empty($data['file_draft']) ? basename($data['file_draft']) : '';
+                    $hasPdfFinal = $pdfHeaderFile !== ''
+                        && strtolower(pathinfo($pdfHeaderFile, PATHINFO_EXTENSION)) === 'pdf'
+                        && file_exists('../assets/upload/draft_final/' . $pdfHeaderFile);
+                    $hasWordFinal = $wordHeaderFile !== ''
+                        && preg_match('/\.(doc|docx)$/i', $wordHeaderFile)
+                        && file_exists('../assets/upload/draft_final/' . $wordHeaderFile);
                     ?>
-                    <?php if (!empty($pdfHeaderFile)): ?>
-                        <a href="../assets/upload/<?= $pdfHeaderFolder; ?>/<?= htmlspecialchars($pdfHeaderFile); ?>" class="btn btn-sm btn-success ml-2" download>
+                    <?php if ($hasPdfFinal): ?>
+                        <a href="../assets/upload/draft_final/<?= rawurlencode($pdfHeaderFile); ?>" class="btn btn-sm btn-success ml-2" download>
                             <i class="fas fa-file-pdf"></i> PDF Final
                         </a>
                     <?php endif; ?>
                     <?php if ($hasWordFinal): ?>
-                        <a href="../assets/upload/draft_final/<?= htmlspecialchars($data['file_draft']); ?>" class="btn btn-sm btn-info ml-2" download>
+                        <a href="../assets/upload/draft_final/<?= rawurlencode($wordHeaderFile); ?>" class="btn btn-sm btn-info ml-2" download>
                             <i class="fas fa-file-word"></i> Word Final
                         </a>
                     <?php endif; ?>
@@ -385,31 +388,26 @@ if (isset($_POST['edit_judul_dokumen'])) {
                 <h5>Preview Dokumen PDF:</h5>
 
                 <?php
-                    $pdfPreviewFile = !empty($data['file_final']) ? $data['file_final'] : $data['file_draft'];
-                    $pdfPreviewFolder = file_exists('../assets/upload/draft_final/' . $pdfPreviewFile) ? 'draft_final' : 'draft_word';
+                    $pdfPreviewFile = $hasPdfFinal ? $pdfHeaderFile : '';
                 ?>
                 <?php if (!empty($pdfPreviewFile)): ?>
                     <?php
-                        // Lokasi file di server
-                        $file_path = '../assets/upload/' . $pdfPreviewFolder . '/' . $pdfPreviewFile;
-
-                        // URL relatif mengikuti folder aplikasi yang sedang dibuka.
-                        $file_url = '../assets/upload/' . $pdfPreviewFolder . '/' . rawurlencode($pdfPreviewFile);
+                        $file_url = '../assets/upload/draft_final/' . rawurlencode($pdfPreviewFile);
                     ?>
 
                     <!-- Tombol Download -->
-                    <a href="<?= $file_path; ?>" class="btn btn-success mb-3 float-right ml-2" download>
+                    <a href="<?= htmlspecialchars($file_url); ?>" class="btn btn-success mb-3 float-right ml-2" download>
                         <i class="fas fa-download"></i> Download File PDF
                     </a>
 
                     <!-- Tombol Cetak -->
-                    <button type="button" class="btn btn-primary mb-3 float-right" onclick="printPDF('<?= $file_url; ?>')">
+                    <button type="button" class="btn btn-primary mb-3 float-right" onclick="printPDF('<?= htmlspecialchars($file_url); ?>')">
                         <i class="fas fa-print"></i> Cetak PDF
                     </button>
 
                     <!-- Preview PDF -->
                     <iframe 
-                        src="<?= $file_url; ?>" 
+                        src="<?= htmlspecialchars($file_url); ?>"
                         style="width:100%; height:600px;" 
                         frameborder="0">
                     </iframe>
@@ -424,7 +422,12 @@ if (isset($_POST['edit_judul_dokumen'])) {
                         }
                     </script>
                 <?php else: ?>
-                    <p><em>Tidak ada file PDF yang dilampirkan.</em></p>
+                    <p><em>Dokumen ini tidak memiliki file final PDF.</em></p>
+                    <?php if ($hasWordFinal): ?>
+                        <a href="../assets/upload/draft_final/<?= rawurlencode($wordHeaderFile); ?>" class="btn btn-info mb-3" download>
+                            <i class="fas fa-file-word"></i> Download File Word
+                        </a>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
 

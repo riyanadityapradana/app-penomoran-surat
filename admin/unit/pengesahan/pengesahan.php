@@ -97,9 +97,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan
 	}
 
 	$q_edit = mysqli_query($config, "
-		SELECT id_pengajuan, elemen_penilaian, tanggal_dokumen, nomor_surat, file_draft, file_final
-		FROM tb_pengajuan_dokumen
-		WHERE id_pengajuan = '$id_pengajuan' AND status = 'Selesai'
+		SELECT p.id_pengajuan, p.elemen_penilaian, p.tanggal_dokumen, p.nomor_surat,
+			p.file_draft, p.file_final, j.kode_jenis
+		FROM tb_pengajuan_dokumen p
+		LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
+		WHERE p.id_pengajuan = '$id_pengajuan' AND p.status = 'Selesai'
 	");
 
 	if (!$q_edit || mysqli_num_rows($q_edit) === 0) {
@@ -157,6 +159,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan
 		}
 
 		$pdf_name = $uploadPdf['filename'];
+	}
+
+	$finalSelection = app_validate_final_upload_selection(
+		$data_edit['kode_jenis'] ?? '',
+		trim((string) $word_name) !== '',
+		trim((string) $pdf_name) !== ''
+	);
+	if (!$finalSelection['ok']) {
+		if ($uploadWord && !empty($uploadWord['filename'])) {
+			hapus_file_pengesahan($uploadWord['filename']);
+		}
+		if ($uploadPdf && !empty($uploadPdf['filename'])) {
+			hapus_file_pengesahan($uploadPdf['filename']);
+		}
+		header('Location: main_admin.php?unit=pengesahan&err=' . urlencode($finalSelection['message']));
+		exit;
 	}
 
 	if ($uploadWord && !empty($data_edit['file_draft']) && $data_edit['file_draft'] !== $word_name) {

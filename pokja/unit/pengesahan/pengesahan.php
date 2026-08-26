@@ -183,7 +183,7 @@
 										<th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
 										<th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
 										<th style="font-size: 14px;" width="120" responsive>Status</th>
-										<th style="font-size: 14px;" width="120" responsive>File PDF Final</th>
+										<th style="font-size: 14px;" width="120" responsive>File Final</th>
 										<th>Aksi</th>
 									</tr>
 								</thead>

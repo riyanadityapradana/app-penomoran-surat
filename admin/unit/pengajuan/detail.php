@@ -10,7 +10,7 @@ $has_tanggal_pengesahan = $q_tanggal_pengesahan && mysqli_num_rows($q_tanggal_pe
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
     $query = mysqli_query($config, "
-        SELECT p.*, j.nama_jenis, u.nama_lengkap, u.kode_pokja, u.email_user
+        SELECT p.*, j.nama_jenis, j.kode_jenis, u.nama_lengkap, u.kode_pokja, u.email_user
         FROM tb_pengajuan_dokumen p
         LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
         LEFT JOIN tb_user u ON p.id_user = u.id_user
@@ -26,6 +26,8 @@ if (isset($_GET['id_pengajuan'])) {
     header('Location: main_admin.php?unit=pengajuan&err=ID Pengajuan tidak ditemukan!');
     exit;
 }
+
+$is_dokumen_bukti = strtoupper(trim((string) ($data['kode_jenis'] ?? ''))) === 'DB';
 
 function app_final_filename_base($data, $id_pengajuan)
 {
@@ -97,67 +99,109 @@ function app_delete_draft_word_file($filename)
     return true;
 }
 
+function app_has_final_upload($file)
+{
+    return isset($file)
+        && is_array($file)
+        && ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+}
+
 if (isset($_POST['upload_final'])) {
     if (empty($data['nomor_surat'])) {
         echo "<script>alert('Nomor dokumen belum tersedia. Silakan isi nomor dokumen terlebih dahulu.');</script>";
+    } elseif ($data['status'] !== 'Disetujui') {
+        echo "<script>alert('Upload final hanya dapat dilakukan pada dokumen berstatus Disetujui.');</script>";
     } else {
         $finalDir = '../assets/upload/draft_final/';
         $filenameBase = app_final_filename_base($data, $id_pengajuan);
-        $uploadWord = app_store_final_named_file(
-            $_FILES['file_word_final'] ?? null,
-            $finalDir,
-            $filenameBase,
-            ['doc', 'docx'],
-            [
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/zip',
-                'application/octet-stream'
-            ],
-            15 * 1024 * 1024
-        );
-        $uploadPdf = app_store_final_named_file(
-            $_FILES['file_pdf_final'] ?? null,
-            $finalDir,
-            $filenameBase,
-            ['pdf'],
-            ['application/pdf', 'application/octet-stream'],
-            15 * 1024 * 1024
-        );
+        $hasWordUpload = app_has_final_upload($_FILES['file_word_final'] ?? null);
+        $hasPdfUpload = app_has_final_upload($_FILES['file_pdf_final'] ?? null);
+        $finalSelection = app_validate_final_upload_selection($data['kode_jenis'] ?? '', $hasWordUpload, $hasPdfUpload);
 
-        if (!$uploadWord['ok']) {
-            echo "<script>alert('" . addslashes($uploadWord['message']) . "');</script>";
-        } elseif (!$uploadPdf['ok']) {
-            if (!empty($uploadWord['filename'])) {
-                app_delete_final_file($uploadWord['filename']);
-            }
-            echo "<script>alert('" . addslashes($uploadPdf['message']) . "');</script>";
+        if (!$finalSelection['ok']) {
+            echo "<script>alert('" . addslashes($finalSelection['message']) . "');</script>";
         } else {
-            if (!empty($data['file_draft'])) {
-                app_delete_final_file($data['file_draft']);
-                app_delete_draft_word_file($data['file_draft']);
+            $uploadWord = null;
+            $uploadPdf = null;
+            $uploadError = '';
+
+            if ($hasWordUpload) {
+                $uploadWord = app_store_final_named_file(
+                    $_FILES['file_word_final'],
+                    $finalDir,
+                    $filenameBase,
+                    ['doc', 'docx'],
+                    [
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/zip',
+                        'application/octet-stream'
+                    ],
+                    15 * 1024 * 1024
+                );
+                if (!$uploadWord['ok']) {
+                    $uploadError = $uploadWord['message'];
+                }
             }
-            if (!empty($data['file_final'])) {
-                app_delete_final_file($data['file_final']);
-                app_delete_draft_word_file($data['file_final']);
+
+            if ($uploadError === '' && $hasPdfUpload) {
+                $uploadPdf = app_store_final_named_file(
+                    $_FILES['file_pdf_final'],
+                    $finalDir,
+                    $filenameBase,
+                    ['pdf'],
+                    ['application/pdf', 'application/octet-stream'],
+                    15 * 1024 * 1024
+                );
+                if (!$uploadPdf['ok']) {
+                    $uploadError = $uploadPdf['message'];
+                }
             }
 
-            $word_name = mysqli_real_escape_string($config, $uploadWord['filename']);
-            $pdf_name = mysqli_real_escape_string($config, $uploadPdf['filename']);
-			$set_tanggal_pengesahan = $has_tanggal_pengesahan ? ', tanggal_pengesahan=NOW()' : '';
+            if ($uploadError !== '') {
+                if ($uploadWord && !empty($uploadWord['filename'])) {
+                    app_delete_final_file($uploadWord['filename']);
+                }
+                if ($uploadPdf && !empty($uploadPdf['filename'])) {
+                    app_delete_final_file($uploadPdf['filename']);
+                }
+                echo "<script>alert('" . addslashes($uploadError) . "');</script>";
+            } else {
+                $word_name_raw = $uploadWord ? $uploadWord['filename'] : '';
+                $pdf_name_raw = $uploadPdf ? $uploadPdf['filename'] : '';
+                $word_name = mysqli_real_escape_string($config, $word_name_raw);
+                $pdf_name = mysqli_real_escape_string($config, $pdf_name_raw);
+				$set_tanggal_pengesahan = $has_tanggal_pengesahan ? ', tanggal_pengesahan=NOW()' : '';
 
-            mysqli_query($config, "
-                UPDATE tb_pengajuan_dokumen
-                SET file_draft='$word_name',
-                    file_final='$pdf_name',
-					status='Selesai'
-					$set_tanggal_pengesahan
-                WHERE id_pengajuan='$id_pengajuan'
-            ");
+                $updateFinal = mysqli_query($config, "
+                    UPDATE tb_pengajuan_dokumen
+                    SET file_draft='$word_name',
+                        file_final='$pdf_name',
+						status='Selesai'
+						$set_tanggal_pengesahan
+                    WHERE id_pengajuan='$id_pengajuan' AND status='Disetujui'
+                ");
 
-            $pokjaLink = app_base_url() . '/pokja/main_pokja.php?unit=pengesahan';
-            $emailSubject = 'Dokumen Final Siap Diunduh - ' . $data['judul_dokumen'];
-            $emailBody = "
+                if (!$updateFinal || mysqli_affected_rows($config) !== 1) {
+                    if ($word_name_raw !== '') {
+                        app_delete_final_file($word_name_raw);
+                    }
+                    if ($pdf_name_raw !== '') {
+                        app_delete_final_file($pdf_name_raw);
+                    }
+                    echo "<script>alert('Gagal menyimpan data file final. Status dokumen tidak diubah.');</script>";
+                } else {
+                    $oldFiles = array_unique(array_filter([$data['file_draft'], $data['file_final']]));
+                    foreach ($oldFiles as $oldFile) {
+                        if ($oldFile !== $word_name_raw && $oldFile !== $pdf_name_raw) {
+                            app_delete_final_file($oldFile);
+                            app_delete_draft_word_file($oldFile);
+                        }
+                    }
+
+                    $pokjaLink = app_base_url() . '/pokja/main_pokja.php?unit=pengesahan';
+                    $emailSubject = 'Dokumen Final Siap Diunduh - ' . $data['judul_dokumen'];
+                    $emailBody = "
                 <p>Halo <b>" . htmlspecialchars($data['nama_lengkap']) . "</b>,</p>
                 <p>Dokumen final Anda sudah diupload admin dan saat ini berstatus <b>Selesai</b>.</p>
                 <table border='0' cellpadding='6' cellspacing='0' style='border-collapse:collapse;'>
@@ -169,35 +213,40 @@ if (isset($_POST['upload_final'])) {
                 </table>
                 <p>Silakan login ke aplikasi untuk mengunduh file final.</p>
                 <p><a href='" . htmlspecialchars($pokjaLink) . "'>Buka halaman pengesahan</a></p>
-            ";
-            if (!empty($data['email_user'])) {
-                app_send_email($data['email_user'], $emailSubject, $emailBody);
-            }
+                    ";
+                    if (!empty($data['email_user'])) {
+                        app_send_email($data['email_user'], $emailSubject, $emailBody);
+                    }
 
-            $telegramMessage = "<b>Dokumen Final Siap Diunduh</b>\n"
+                    $telegramMessage = "<b>Dokumen Final Siap Diunduh</b>\n"
                 . "Pokja: <b>" . htmlspecialchars($data['kode_pokja']) . "</b>\n"
                 . "Judul: <b>" . htmlspecialchars($data['judul_dokumen']) . "</b>\n"
                 . "Jenis: <b>" . htmlspecialchars($data['nama_jenis']) . "</b>\n"
                 . "Nomor Surat: <b>" . htmlspecialchars($data['nomor_surat']) . "</b>\n"
                 . "Status: <b>Selesai</b>\n"
                 . "Link: " . htmlspecialchars($pokjaLink);
-            app_send_telegram($telegramMessage);
+                    app_send_telegram($telegramMessage);
 
-            $data['file_draft'] = $word_name;
-            $data['file_final'] = $pdf_name;
-            $waUrl = '';
-            if (!empty($data['no_tlp'])) {
-                $waUrl = app_wa_url($data['no_tlp'], app_wa_selesai_message($data));
+                    $data['file_draft'] = $word_name_raw;
+                    $data['file_final'] = $pdf_name_raw;
+                    $waUrl = '';
+                    if (!empty($data['no_tlp'])) {
+                        $waUrl = app_wa_url($data['no_tlp'], app_wa_selesai_message($data));
+                    }
+                    $uploadedFormat = $word_name_raw !== '' && $pdf_name_raw !== ''
+                        ? 'Word dan PDF'
+                        : ($word_name_raw !== '' ? 'Word' : 'PDF');
+                    $redirectUrl = 'main_admin.php?unit=pengajuan&msg=' . urlencode('File final ' . $uploadedFormat . ' berhasil diupload dan status menjadi Selesai!');
+                    echo "<script>";
+                    if ($waUrl !== '') {
+                        echo "var waWindow = window.open('', 'waNotifyWindow');";
+                        echo "if (waWindow) { waWindow.location.href = " . json_encode($waUrl) . "; }";
+                    }
+                    echo "window.location.href = " . json_encode($redirectUrl) . ";";
+                    echo "</script>";
+                    exit;
+                }
             }
-            $redirectUrl = 'main_admin.php?unit=pengajuan&msg=File final Word dan PDF berhasil diupload, status SELESAI, email, Telegram, dan WhatsApp sudah diproses!';
-            echo "<script>";
-            if ($waUrl !== '') {
-                echo "var waWindow = window.open('', 'waNotifyWindow');";
-                echo "if (waWindow) { waWindow.location.href = " . json_encode($waUrl) . "; }";
-            }
-            echo "window.location.href = " . json_encode($redirectUrl) . ";";
-            echo "</script>";
-            exit;
         }
     }
 }
@@ -249,19 +298,21 @@ function getBadgeClass($status) {
             <div class="card-header d-flex align-items-center" style="position:relative;">
                 <h3 class="card-title">Informasi Pengajuan dari Pokja</h3>
                 <div class="ml-auto" style="position:absolute; right:24px; top:9px;">
-                <?php if ($data['status'] === 'Selesai' && !empty($data['file_final'])): ?>
-                    <a href="../assets/upload/draft_final/<?= htmlspecialchars($data['file_final']); ?>"
-                       class="btn btn-sm btn-success ml-2" download>
-                        <i class="fas fa-file-pdf"></i> PDF Final
-                    </a>
+                <?php if ($data['status'] === 'Selesai'): ?>
+                    <?php if (!empty($data['file_final'])): ?>
+                        <a href="../assets/upload/draft_final/<?= rawurlencode(basename($data['file_final'])); ?>"
+                           class="btn btn-sm btn-success ml-2" download>
+                            <i class="fas fa-file-pdf"></i> PDF Final
+                        </a>
+                    <?php endif; ?>
                     <?php if (!empty($data['file_draft'])): ?>
-                    <a href="../assets/upload/draft_final/<?= htmlspecialchars($data['file_draft']); ?>"
-                       class="btn btn-sm btn-info ml-2" download>
-                        <i class="fas fa-file-word"></i> Word Final
-                    </a>
+                        <a href="../assets/upload/draft_final/<?= rawurlencode(basename($data['file_draft'])); ?>"
+                           class="btn btn-sm btn-info ml-2" download>
+                            <i class="fas fa-file-word"></i> Word Final
+                        </a>
                     <?php endif; ?>
                 <?php elseif (!empty($data['file_draft'])): ?>
-                    <a href="../assets/upload/draft_word/<?= htmlspecialchars($data['file_draft']); ?>"
+                    <a href="../assets/upload/draft_word/<?= rawurlencode(basename($data['file_draft'])); ?>"
                        class="btn btn-sm btn-success ml-2" download>
                         <i class="fas fa-download"></i> Download Draft
                     </a>
@@ -311,16 +362,26 @@ function getBadgeClass($status) {
                                     <i class="fas fa-times"></i> Tolak
                                 </a>
                             <?php elseif ($data['status'] == 'Disetujui'): ?>
-                                <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2" onsubmit="return prepareWaSubmit('Upload dokumen final Word dan PDF lalu ubah status menjadi Selesai? WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.');">
+                                <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2" onsubmit="return prepareFinalUpload(<?= $is_dokumen_bukti ? 'true' : 'false'; ?>);">
                                     <input type="hidden" name="id_pengajuan" value="<?= $data['id_pengajuan']; ?>">
-                                    <input type="file" name="file_word_final" accept=".doc,.docx" required>
-                                    <input type="file" name="file_pdf_final" accept="application/pdf" required>
+                                    <span class="d-inline-block mr-2">
+                                        <small class="d-block font-weight-bold">Word Final<?= $is_dokumen_bukti ? ' (opsional)' : ' *'; ?></small>
+                                        <input type="file" name="file_word_final" id="fileWordFinal" accept=".doc,.docx" <?= $is_dokumen_bukti ? '' : 'required'; ?>>
+                                    </span>
+                                    <span class="d-inline-block mr-2">
+                                        <small class="d-block font-weight-bold">PDF Final<?= $is_dokumen_bukti ? ' (opsional)' : ' *'; ?></small>
+                                        <input type="file" name="file_pdf_final" id="filePdfFinal" accept="application/pdf,.pdf" <?= $is_dokumen_bukti ? '' : 'required'; ?>>
+                                    </span>
                                     <button type="submit" name="upload_final" class="btn btn-sm btn-primary">
                                         <i class="fas fa-upload"></i> Upload Final
                                     </button>
                                 </form>
                                 <br>
-                                <small class="form-text text-muted"><b>Note : Upload dokumen final format Word dan PDF. File akan disimpan di folder draft_final.</b></small>
+                                <?php if ($is_dokumen_bukti): ?>
+                                    <small class="form-text text-muted"><b>Dokumen Bukti: unggah minimal salah satu file final, Word atau PDF.</b></small>
+                                <?php else: ?>
+                                    <small class="form-text text-muted"><b>Dokumen selain Dokumen Bukti wajib mengunggah Word dan PDF.</b></small>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -389,12 +450,12 @@ function getBadgeClass($status) {
 
                 <hr>
 
-                <?php if (!empty($data['file_draft'])): ?>
+                <?php if (!empty($data['file_draft']) || !empty($data['file_final'])): ?>
                     <script>
                     function openAndPrint() {
-                        const fileUrl = "<?= $data['status'] === 'Selesai' && !empty($data['file_final'])
-                            ? '../assets/upload/draft_final/' . htmlspecialchars($data['file_final'])
-                            : '../assets/upload/draft_word/' . htmlspecialchars($data['file_draft']); ?>";
+                        const fileUrl = "<?= $data['status'] === 'Selesai'
+                            ? '../assets/upload/draft_final/' . rawurlencode(basename(!empty($data['file_final']) ? $data['file_final'] : $data['file_draft']))
+                            : '../assets/upload/draft_word/' . rawurlencode(basename($data['file_draft'])); ?>";
                         const printWindow = window.open(fileUrl, "_blank");
                         if (printWindow) {
                             printWindow.onload = function() {
@@ -464,6 +525,27 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 
           var url = 'https://wa.me/' + noTelFormatted + '?text=' + pesan;
           window.open(url, '_blank');
+}
+
+function prepareFinalUpload(isDokumenBukti) {
+    var wordInput = document.getElementById('fileWordFinal');
+    var pdfInput = document.getElementById('filePdfFinal');
+    var hasWord = wordInput && wordInput.files.length > 0;
+    var hasPdf = pdfInput && pdfInput.files.length > 0;
+
+    if (isDokumenBukti && !hasWord && !hasPdf) {
+        alert('Dokumen Bukti wajib mengunggah minimal satu file final: Word atau PDF.');
+        return false;
+    }
+    if (!isDokumenBukti && (!hasWord || !hasPdf)) {
+        alert('Dokumen selain Dokumen Bukti wajib mengunggah file final Word dan PDF.');
+        return false;
+    }
+
+    var message = isDokumenBukti
+        ? 'Upload file final Dokumen Bukti dan ubah status menjadi Selesai?'
+        : 'Upload dokumen final Word dan PDF lalu ubah status menjadi Selesai?';
+    return prepareWaSubmit(message + ' WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.');
 }
 </script>
     </div>

@@ -87,57 +87,49 @@ if (isset($_GET['id_pengajuan'])) {
                 </table>
 
                 <hr>
-                <h5>Preview Dokumen PDF:</h5>
-
                 <?php
-                    $pdfPreviewFile = !empty($data['file_final']) ? $data['file_final'] : $data['file_draft'];
-                    $pdfPreviewFolder = file_exists('../assets/upload/draft_final/' . $pdfPreviewFile) ? 'draft_final' : 'draft_word';
-                    $hasWordFinal = !empty($data['file_draft'])
-                        && preg_match('/\.(doc|docx)$/i', $data['file_draft'])
-                        && file_exists('../assets/upload/draft_final/' . $data['file_draft']);
+                    $pdfFinal = !empty($data['file_final']) ? basename($data['file_final']) : '';
+                    $wordFinal = !empty($data['file_draft']) ? basename($data['file_draft']) : '';
+                    $hasPdfFinal = $pdfFinal !== ''
+                        && strtolower(pathinfo($pdfFinal, PATHINFO_EXTENSION)) === 'pdf'
+                        && file_exists('../assets/upload/draft_final/' . $pdfFinal);
+                    $hasWordFinal = $wordFinal !== ''
+                        && preg_match('/\.(doc|docx)$/i', $wordFinal)
+                        && file_exists('../assets/upload/draft_final/' . $wordFinal);
                 ?>
-                <?php if (!empty($pdfPreviewFile)): ?>
-                    <?php
-                        // Lokasi file di server
-                        $file_path = '../assets/upload/' . $pdfPreviewFolder . '/' . $pdfPreviewFile;
 
-                        // URL relatif mengikuti folder aplikasi yang sedang dibuka.
-                        $file_url = '../assets/upload/' . $pdfPreviewFolder . '/' . rawurlencode($pdfPreviewFile);
-                    ?>
-
-                    <!-- Tombol Download -->
-                    <a href="<?= $file_path; ?>" class="btn btn-success mb-3 float-right ml-2" download>
-                        <i class="fas fa-download"></i> Download File PDF
+                <?php if ($hasPdfFinal): ?>
+                    <?php $pdfUrl = '../assets/upload/draft_final/' . rawurlencode($pdfFinal); ?>
+                    <h5>Preview Dokumen PDF:</h5>
+                    <a href="<?= htmlspecialchars($pdfUrl); ?>" class="btn btn-success mb-3 float-right ml-2" download>
+                        <i class="fas fa-file-pdf"></i> Download File PDF
                     </a>
                     <?php if ($hasWordFinal): ?>
-                    <a href="../assets/upload/draft_final/<?= htmlspecialchars($data['file_draft']); ?>" class="btn btn-info mb-3 float-right ml-2" download>
-                        <i class="fas fa-file-word"></i> Download File Word
-                    </a>
+                        <a href="../assets/upload/draft_final/<?= rawurlencode($wordFinal); ?>" class="btn btn-info mb-3 float-right ml-2" download>
+                            <i class="fas fa-file-word"></i> Download File Word
+                        </a>
                     <?php endif; ?>
-
-                    <!-- Tombol Cetak -->
-                    <button type="button" class="btn btn-primary mb-3 float-right" onclick="printPDF('<?= $file_url; ?>')">
+                    <button type="button" class="btn btn-primary mb-3 float-right" onclick="printPDF('<?= htmlspecialchars($pdfUrl); ?>')">
                         <i class="fas fa-print"></i> Cetak PDF
                     </button>
-
-                    <!-- Preview PDF -->
-                    <iframe 
-                        src="<?= $file_url; ?>" 
-                        style="width:100%; height:600px;" 
-                        frameborder="0">
-                    </iframe>
-
+                    <iframe src="<?= htmlspecialchars($pdfUrl); ?>" style="width:100%; height:600px;" frameborder="0"></iframe>
                     <script>
                         function printPDF(url) {
-                            // Buka PDF di tab baru, lalu otomatis print
                             const printWindow = window.open(url, '_blank');
-                            printWindow.addEventListener('load', function() {
-                                printWindow.print();
-                            });
+                            if (printWindow) {
+                                printWindow.addEventListener('load', function() {
+                                    printWindow.print();
+                                });
+                            }
                         }
                     </script>
+                <?php elseif ($hasWordFinal): ?>
+                    <h5>Dokumen Final Word:</h5>
+                    <a href="../assets/upload/draft_final/<?= rawurlencode($wordFinal); ?>" class="btn btn-info mb-3" download>
+                        <i class="fas fa-file-word"></i> Download File Word
+                    </a>
                 <?php else: ?>
-                    <p><em>Tidak ada file PDF yang dilampirkan.</em></p>
+                    <p><em>Tidak ada file final yang tersedia.</em></p>
                 <?php endif; ?>
             </div>
 
