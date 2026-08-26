@@ -106,7 +106,9 @@ function getBadgeClass($status) {
                 <?php if (!empty($data['file_draft'])): ?>
                     <?php
                         // Lokasi file di server
-                        $file_path = '../assets/upload/draft_word/' . $data['file_draft'];
+                        $safe_file_name = basename((string) $data['file_draft']);
+                        $file_path = '../assets/upload/draft_word/' . rawurlencode($safe_file_name);
+                        $is_pdf_draft = strtolower(pathinfo($safe_file_name, PATHINFO_EXTENSION)) === 'pdf';
 
                         // URL absolut untuk viewer Google Docs
                         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -114,8 +116,8 @@ function getBadgeClass($status) {
                     ?>
 
                     <!-- Tombol Download -->
-                    <a href="<?= $file_path; ?>" class="btn btn-success mb-3 float-right" download>
-                        <i class="fas fa-download"></i> Download File Word
+                    <a href="<?= htmlspecialchars($file_path); ?>" class="btn <?= $is_pdf_draft ? 'btn-danger' : 'btn-success'; ?> mb-3 float-right" download>
+                        <i class="fas <?= $is_pdf_draft ? 'fa-file-pdf' : 'fa-file-word'; ?>"></i> Download File <?= $is_pdf_draft ? 'PDF' : 'Word'; ?>
                     </a>
 
                     <!-- Preview via Google Docs Viewer -->
@@ -125,7 +127,7 @@ function getBadgeClass($status) {
                         frameborder="0">
                     </iframe>-->
                 <?php else: ?>
-                    <p><em>Tidak ada file Word yang dilampirkan.</em></p>
+                    <p><em>Tidak ada file yang dilampirkan.</em></p>
                 <?php endif; ?>
             </div>
 

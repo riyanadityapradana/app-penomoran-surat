@@ -145,6 +145,7 @@ $query = mysqli_query($config, "
                                 $namaJenis = htmlspecialchars($row['nama_jenis']);
                                 $nomorSurat = htmlspecialchars($row['nomor_surat'] ?? '');
                                 $fileDraft = basename((string) ($row['file_draft'] ?? ''));
+                                $fileDraftIsPdf = strtolower(pathinfo($fileDraft, PATHINFO_EXTENSION)) === 'pdf';
                                 echo "<tr>
                                         <td class='text-center'>{$no}</td>
                                         <td class='text-center'>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
@@ -191,9 +192,12 @@ $query = mysqli_query($config, "
 								echo "</td>
 									<td class='text-center'>";
 								if (!empty($row['file_draft'])) {
+									$draftButtonClass = $fileDraftIsPdf ? 'btn-danger' : 'btn-info';
+									$draftIcon = $fileDraftIsPdf ? 'fa-file-pdf' : 'fa-file-word';
+									$draftLabel = $fileDraftIsPdf ? 'PDF' : 'Word';
 									echo "<a href='../assets/upload/draft_word/" . rawurlencode($fileDraft) . "'
-											target='_blank' class='btn btn-sm btn-info'>
-											<i class='fas fa-file-word'></i> Download
+											target='_blank' class='btn btn-sm {$draftButtonClass}'>
+											<i class='fas {$draftIcon}'></i> {$draftLabel}
 										  </a>";
 								} else {
 									echo "-";

@@ -89,8 +89,13 @@
 								echo "</td>
 									<td>";
 								if (!empty($row['file_draft'])) {
-									echo "<a href='../assets/upload/draft_word/{$row['file_draft']}' target='_blank' class='btn btn-sm btn-info'>
-											<i class='fas fa-file-word'></i> Download
+									$fileDraft = basename((string) $row['file_draft']);
+									$isPdfDraft = strtolower(pathinfo($fileDraft, PATHINFO_EXTENSION)) === 'pdf';
+									$btnClass = $isPdfDraft ? 'btn-danger' : 'btn-info';
+									$fileIcon = $isPdfDraft ? 'fa-file-pdf' : 'fa-file-word';
+									$fileLabel = $isPdfDraft ? 'PDF' : 'Word';
+									echo "<a href='../assets/upload/draft_word/" . rawurlencode($fileDraft) . "' target='_blank' class='btn btn-sm {$btnClass}'>
+											<i class='fas {$fileIcon}'></i> {$fileLabel}
 										  </a>";
 								} else {
 									echo "-";

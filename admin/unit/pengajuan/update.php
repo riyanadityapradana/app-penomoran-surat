@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $stmtJenis = mysqli_prepare($config, "SELECT id_jenis FROM tb_jenis_dokumen WHERE id_jenis = ? AND TRIM(kode_jenis) <> '' LIMIT 1");
+    $stmtJenis = mysqli_prepare($config, "SELECT id_jenis, kode_jenis FROM tb_jenis_dokumen WHERE id_jenis = ? AND TRIM(kode_jenis) <> '' LIMIT 1");
     mysqli_stmt_bind_param($stmtJenis, 'i', $idJenis);
     mysqli_stmt_execute($stmtJenis);
     $jenisValid = mysqli_fetch_assoc(mysqli_stmt_get_result($stmtJenis));
@@ -96,6 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: main_admin.php?unit=update_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=Jenis dokumen tidak valid!');
         exit;
     }
+
+    $uploadRules = app_pengajuan_draft_upload_rules($jenisValid['kode_jenis']);
 
     if ($hasNoTlp && !app_validate_phone_id($noTlp)) {
         header('Location: main_admin.php?unit=update_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=Nomor WhatsApp tidak valid!');
@@ -109,19 +111,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $fileDraft = (string) ($data['file_draft'] ?? '');
     $fileDraftBaru = '';
+    $fileExtensionLama = strtolower(pathinfo($fileDraft, PATHINFO_EXTENSION));
+    if (empty($_FILES['file_draft']['name']) && !in_array($fileExtensionLama, $uploadRules['extensions'], true)) {
+        header('Location: main_admin.php?unit=update_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=File lama tidak sesuai dengan jenis dokumen yang dipilih. Silakan unggah file Word pengganti!');
+        exit;
+    }
+
     if (!empty($_FILES['file_draft']['name'])) {
         $upload = app_store_uploaded_file(
             $_FILES['file_draft'],
             '../assets/upload/draft_word/',
             'draft_' . (int) $data['id_user'],
-            ['doc', 'docx'],
-            [
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/zip',
-                'application/octet-stream'
-            ],
-            10 * 1024 * 1024
+            $uploadRules['extensions'],
+            $uploadRules['mimes'],
+            $uploadRules['max_bytes']
         );
 
         if (!$upload['ok']) {
@@ -218,13 +221,13 @@ $standardEpValue = preg_replace($prefixPattern, '', $standardEpValue);
                                     <input type="text" class="form-control" value="<?= htmlspecialchars($data['nama_jenis'] . ' (' . $data['kode_jenis'] . ')'); ?>" readonly>
                                     <small class="form-text text-muted">Jenis dokumen dikunci karena nomor surat sudah terbit.</small>
                                 <?php else: ?>
-                                    <select name="id_jenis" class="form-control select2" required>
+                                    <select name="id_jenis" id="jenisDokumen" class="form-control select2" required>
                                         <option value="">-- Pilih Jenis Dokumen --</option>
                                         <?php
                                         $qJenis = mysqli_query($config, "SELECT id_jenis, nama_jenis, kode_jenis FROM tb_jenis_dokumen WHERE TRIM(kode_jenis) <> '' ORDER BY nama_jenis ASC");
                                         while ($jenis = mysqli_fetch_assoc($qJenis)):
                                         ?>
-                                            <option value="<?= (int) $jenis['id_jenis']; ?>" <?= (int) $jenis['id_jenis'] === (int) $data['id_jenis'] ? 'selected' : ''; ?>>
+                                            <option value="<?= (int) $jenis['id_jenis']; ?>" data-kode-jenis="<?= htmlspecialchars(strtoupper(trim($jenis['kode_jenis']))); ?>" <?= (int) $jenis['id_jenis'] === (int) $data['id_jenis'] ? 'selected' : ''; ?>>
                                                 <?= htmlspecialchars($jenis['nama_jenis'] . ' (' . $jenis['kode_jenis'] . ')'); ?>
                                             </option>
                                         <?php endwhile; ?>
@@ -261,16 +264,21 @@ $standardEpValue = preg_replace($prefixPattern, '', $standardEpValue);
                         <textarea name="catatan" class="form-control" rows="3" placeholder="Catatan pengajuan dokumen"><?= htmlspecialchars($data['catatan'] ?? ''); ?></textarea>
                     </div>
 
+                    <?php
+                    $currentUploadRules = app_pengajuan_draft_upload_rules($data['kode_jenis'] ?? '');
+                    $currentFileIsPdf = strtolower(pathinfo((string) ($data['file_draft'] ?? ''), PATHINFO_EXTENSION)) === 'pdf';
+                    ?>
                     <div class="form-group">
-                        <label>Ganti File Draft Word <small class="text-muted">(opsional, DOC/DOCX maksimal 10MB)</small></label>
+                        <label id="draftFileLabel"><?= htmlspecialchars($currentUploadRules['label']); ?> <small class="text-muted">(opsional)</small></label>
                         <?php if (!empty($data['file_draft'])): ?>
                             <div class="mb-2">
-                                <a href="../assets/upload/draft_word/<?= rawurlencode(basename($data['file_draft'])); ?>" target="_blank" class="btn btn-sm btn-info">
-                                    <i class="fas fa-file-word mr-1"></i>Lihat File Saat Ini
+                                <a href="../assets/upload/draft_word/<?= rawurlencode(basename($data['file_draft'])); ?>" target="_blank" class="btn btn-sm <?= $currentFileIsPdf ? 'btn-danger' : 'btn-info'; ?>">
+                                    <i class="fas <?= $currentFileIsPdf ? 'fa-file-pdf' : 'fa-file-word'; ?> mr-1"></i>Lihat File <?= $currentFileIsPdf ? 'PDF' : 'Word'; ?> Saat Ini
                                 </a>
                             </div>
                         <?php endif; ?>
-                        <input type="file" name="file_draft" class="form-control-file js-file-preview" accept=".doc,.docx">
+                        <input type="file" name="file_draft" id="draftFileInput" class="form-control-file js-file-preview" accept="<?= htmlspecialchars($currentUploadRules['accept']); ?>">
+                        <small class="form-text text-muted" id="draftFileHelp"><?= htmlspecialchars($currentUploadRules['help']); ?></small>
                         <small class="form-text text-muted" id="draftFileInfo">Kosongkan jika file tidak ingin diganti.</small>
                     </div>
                 </div>
@@ -289,8 +297,33 @@ $standardEpValue = preg_replace($prefixPattern, '', $standardEpValue);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var jenisSelect = document.getElementById('jenisDokumen');
+    var draftFileLabel = document.getElementById('draftFileLabel');
+    var draftFileHelp = document.getElementById('draftFileHelp');
     var fileInput = document.querySelector('.js-file-preview');
     var fileInfo = document.getElementById('draftFileInfo');
+
+    function sinkronkanFormatDraft() {
+        if (!jenisSelect || !fileInput || !draftFileLabel || !draftFileHelp) return;
+        var selected = jenisSelect.options[jenisSelect.selectedIndex];
+        var isDokumenBukti = selected && selected.getAttribute('data-kode-jenis') === 'DB';
+        fileInput.accept = isDokumenBukti ? '.doc,.docx,.pdf,application/pdf' : '.doc,.docx';
+        draftFileLabel.innerHTML = isDokumenBukti
+            ? 'File Dokumen Bukti (Word atau PDF, maksimal 10MB) <small class="text-muted">(opsional)</small>'
+            : 'File Draft (Word, maksimal 10MB) <small class="text-muted">(opsional)</small>';
+        draftFileHelp.textContent = isDokumenBukti
+            ? 'Unggah salah satu file: Word (DOC/DOCX) atau PDF.'
+            : 'Format yang diperbolehkan: DOC atau DOCX.';
+    }
+
+    sinkronkanFormatDraft();
+    if (jenisSelect) {
+        jenisSelect.addEventListener('change', sinkronkanFormatDraft);
+        if (window.jQuery) {
+            window.jQuery(jenisSelect).on('change select2:select select2:clear', sinkronkanFormatDraft);
+        }
+    }
+
     if (fileInput && fileInfo) {
         fileInput.addEventListener('change', function() {
             fileInfo.textContent = fileInput.files.length

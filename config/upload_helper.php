@@ -82,3 +82,34 @@ function app_validate_phone_id($phone)
     $clean = preg_replace('/[\s\-().]/', '', trim((string) $phone));
     return (bool) preg_match('/^(\+?62|0)8[0-9]{8,13}$/', $clean);
 }
+
+function app_pengajuan_draft_upload_rules($kodeJenis)
+{
+    $isDokumenBukti = strtoupper(trim((string) $kodeJenis)) === 'DB';
+    $extensions = ['doc', 'docx'];
+    $mimes = [
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/zip',
+        'application/octet-stream'
+    ];
+
+    if ($isDokumenBukti) {
+        $extensions[] = 'pdf';
+        $mimes[] = 'application/pdf';
+    }
+
+    return [
+        'is_dokumen_bukti' => $isDokumenBukti,
+        'extensions' => $extensions,
+        'mimes' => $mimes,
+        'accept' => $isDokumenBukti ? '.doc,.docx,.pdf,application/pdf' : '.doc,.docx',
+        'label' => $isDokumenBukti
+            ? 'File Dokumen Bukti (Word atau PDF, maksimal 10MB)'
+            : 'File Draft (Word, maksimal 10MB)',
+        'help' => $isDokumenBukti
+            ? 'Unggah salah satu file: Word (DOC/DOCX) atau PDF.'
+            : 'Format yang diperbolehkan: DOC atau DOCX.',
+        'max_bytes' => 10 * 1024 * 1024
+    ];
+}

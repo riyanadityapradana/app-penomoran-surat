@@ -39,19 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         exit;
     }
 
+    $upload_rules = app_pengajuan_draft_upload_rules($jenis_data['kode_jenis']);
     $upload_dir = '../assets/upload/draft_word/';
     $upload = app_store_uploaded_file(
         $_FILES['file_draft'] ?? null,
         $upload_dir,
         'draft_' . $id_user,
-        ['doc', 'docx'],
-        [
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/zip',
-            'application/octet-stream'
-        ],
-        10 * 1024 * 1024
+        $upload_rules['extensions'],
+        $upload_rules['mimes'],
+        $upload_rules['max_bytes']
     );
 
     if (!$upload['ok']) {
@@ -191,12 +187,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="form-group">
                                 <label class="required-label">Jenis Dokumen</label>
                                 <input type="hidden" name="id_user" class="form-control" value="<?php echo $_SESSION['id_user']; ?>" readonly>
-                                <select name="id_jenis" class="form-control select2" required>
+                                <select name="id_jenis" id="jenisDokumen" class="form-control select2" required>
                                     <option value="">-- Pilih Jenis Dokumen --</option>
                                     <?php
                                     $qjenis = mysqli_query($config, "SELECT id_jenis, nama_jenis, kode_jenis FROM tb_jenis_dokumen ORDER BY nama_jenis ASC");
                                     while ($r = mysqli_fetch_assoc($qjenis)) {
-                                        echo '<option value="' . (int) $r['id_jenis'] . '">' . htmlspecialchars($r['nama_jenis']) . ' (' . htmlspecialchars($r['kode_jenis']) . ')</option>';
+                                        echo '<option value="' . (int) $r['id_jenis'] . '" data-kode-jenis="' . htmlspecialchars(strtoupper(trim($r['kode_jenis']))) . '">' . htmlspecialchars($r['nama_jenis']) . ' (' . htmlspecialchars($r['kode_jenis']) . ')</option>';
                                     }
                                     ?>
                                 </select>
@@ -218,8 +214,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
 
                     <div class="form-group">
-                        <label class="required-label">File Draft (Word, maksimal 10MB)</label>
-                        <input type="file" name="file_draft" accept=".doc,.docx" class="form-control js-file-preview" data-preview="#draftPreview" required>
+                        <label class="required-label" id="draftFileLabel">File Draft (Word, maksimal 10MB)</label>
+                        <input type="file" name="file_draft" id="draftFileInput" accept=".doc,.docx" class="form-control js-file-preview" data-preview="#draftPreview" required>
+                        <small class="form-text text-muted" id="draftFileHelp">Format yang diperbolehkan: DOC atau DOCX.</small>
                         <div id="draftPreview" class="upload-preview"></div>
                     </div>
 
@@ -255,3 +252,31 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <br><br>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var jenisSelect = document.getElementById('jenisDokumen');
+    var fileInput = document.getElementById('draftFileInput');
+    var fileLabel = document.getElementById('draftFileLabel');
+    var fileHelp = document.getElementById('draftFileHelp');
+
+    function sinkronkanFormatDraft() {
+        if (!jenisSelect || !fileInput || !fileLabel || !fileHelp) return;
+        var selected = jenisSelect.options[jenisSelect.selectedIndex];
+        var isDokumenBukti = selected && selected.getAttribute('data-kode-jenis') === 'DB';
+        fileInput.accept = isDokumenBukti ? '.doc,.docx,.pdf,application/pdf' : '.doc,.docx';
+        fileLabel.textContent = isDokumenBukti
+            ? 'File Dokumen Bukti (Word atau PDF, maksimal 10MB)'
+            : 'File Draft (Word, maksimal 10MB)';
+        fileHelp.textContent = isDokumenBukti
+            ? 'Unggah salah satu file: Word (DOC/DOCX) atau PDF.'
+            : 'Format yang diperbolehkan: DOC atau DOCX.';
+    }
+
+    jenisSelect.addEventListener('change', sinkronkanFormatDraft);
+    if (window.jQuery) {
+        window.jQuery(jenisSelect).on('change select2:select select2:clear', sinkronkanFormatDraft);
+    }
+    sinkronkanFormatDraft();
+});
+</script>
