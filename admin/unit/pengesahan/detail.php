@@ -7,7 +7,7 @@ if (isset($_GET['id_pengajuan'])) {
 
     // Ambil data pengesahan (status harus selesai)
     $query = mysqli_query($config, "
-        SELECT p.*, j.nama_jenis, u.nama_lengkap, u.kode_pokja
+        SELECT p.*, j.nama_jenis, j.kode_jenis, u.nama_lengkap, u.kode_pokja
         FROM tb_pengajuan_dokumen p
         LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
         LEFT JOIN tb_user u ON p.id_user = u.id_user
@@ -23,6 +23,24 @@ if (isset($_GET['id_pengajuan'])) {
 } else {
     header('Location: main_admin.php?unit=pengesahan&err=ID pengesahan tidak ditemukan!');
     exit;
+}
+
+if (empty($_SESSION['detail_pengesahan_csrf'])) {
+    $_SESSION['detail_pengesahan_csrf'] = bin2hex(random_bytes(32));
+}
+
+$daftar_jenis_dokumen = [];
+$query_jenis_dokumen = mysqli_query($config, "
+    SELECT id_jenis, nama_jenis, kode_jenis
+    FROM tb_jenis_dokumen
+    WHERE TRIM(kode_jenis) <> ''
+    ORDER BY nama_jenis ASC
+");
+
+if ($query_jenis_dokumen) {
+    while ($jenis_dokumen = mysqli_fetch_assoc($query_jenis_dokumen)) {
+        $daftar_jenis_dokumen[] = $jenis_dokumen;
+    }
 }
 
 $kode_pokja_standard = trim((string) ($data['kode_pokja'] ?? ''));
@@ -156,6 +174,94 @@ if (isset($_POST['edit_standard_ep'])) {
     exit;
 }
 
+if (isset($_POST['edit_jenis_dokumen'])) {
+    $csrf_token = isset($_POST['csrf_token']) && is_string($_POST['csrf_token'])
+        ? $_POST['csrf_token']
+        : '';
+    $id_jenis_baru = isset($_POST['id_jenis']) && ctype_digit((string) $_POST['id_jenis'])
+        ? (int) $_POST['id_jenis']
+        : 0;
+
+    if (!hash_equals($_SESSION['detail_pengesahan_csrf'], $csrf_token)) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Permintaan edit Jenis Dokumen tidak valid. Silakan coba kembali!');
+        exit;
+    }
+
+    $stmt_jenis = mysqli_prepare($config, "
+        SELECT id_jenis, nama_jenis, kode_jenis
+        FROM tb_jenis_dokumen
+        WHERE id_jenis = ? AND TRIM(kode_jenis) <> ''
+        LIMIT 1
+    ");
+
+    if (!$stmt_jenis) {
+        $errMsg = urlencode('Gagal menyiapkan validasi Jenis Dokumen: ' . mysqli_error($config));
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
+        exit;
+    }
+
+    mysqli_stmt_bind_param($stmt_jenis, 'i', $id_jenis_baru);
+    mysqli_stmt_execute($stmt_jenis);
+    $jenis_baru = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_jenis));
+    mysqli_stmt_close($stmt_jenis);
+
+    if (!$jenis_baru) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Jenis Dokumen yang dipilih tidak valid!');
+        exit;
+    }
+
+    if ($id_jenis_baru === (int) $data['id_jenis']) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=Jenis Dokumen tidak berubah.');
+        exit;
+    }
+
+    $has_word_final = !empty($data['file_draft'])
+        && preg_match('/\.(doc|docx)$/i', basename($data['file_draft']));
+    $has_pdf_final = !empty($data['file_final'])
+        && strtolower(pathinfo(basename($data['file_final']), PATHINFO_EXTENSION)) === 'pdf';
+    $validasi_file_final = app_validate_final_upload_selection(
+        $jenis_baru['kode_jenis'],
+        (bool) $has_word_final,
+        $has_pdf_final
+    );
+
+    if (!$validasi_file_final['ok']) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . urlencode($validasi_file_final['message'] . ' Lengkapi file final terlebih dahulu sebelum mengubah Jenis Dokumen.'));
+        exit;
+    }
+
+    $stmt_update_jenis = mysqli_prepare($config, "
+        UPDATE tb_pengajuan_dokumen
+        SET id_jenis = ?
+        WHERE id_pengajuan = ? AND status = 'Selesai'
+    ");
+
+    if ($stmt_update_jenis) {
+        $id_pengajuan_update = (int) $id_pengajuan;
+        mysqli_stmt_bind_param($stmt_update_jenis, 'ii', $id_jenis_baru, $id_pengajuan_update);
+        $update_berhasil = mysqli_stmt_execute($stmt_update_jenis);
+        $update_error = mysqli_stmt_error($stmt_update_jenis);
+        $baris_diperbarui = $update_berhasil ? mysqli_stmt_affected_rows($stmt_update_jenis) : 0;
+        mysqli_stmt_close($stmt_update_jenis);
+
+        if ($update_berhasil && $baris_diperbarui === 1) {
+            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=Jenis Dokumen berhasil diperbarui!');
+            exit;
+        }
+
+        if ($update_berhasil) {
+            $update_error = 'Data tidak berubah karena dokumen tidak lagi berstatus Selesai.';
+        }
+
+        $errMsg = urlencode('Gagal memperbarui Jenis Dokumen: ' . $update_error);
+    } else {
+        $errMsg = urlencode('Gagal menyiapkan pembaruan Jenis Dokumen: ' . mysqli_error($config));
+    }
+
+    header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
+    exit;
+}
+
 if (isset($_POST['edit_judul_dokumen'])) {
     $judul_dokumen = isset($_POST['judul_dokumen']) ? trim($_POST['judul_dokumen']) : '';
 
@@ -266,7 +372,12 @@ if (isset($_POST['edit_judul_dokumen'])) {
                     </tr>
                     <tr>
                         <th>Jenis Dokumen</th>
-                        <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
+                        <td>
+                            <?= htmlspecialchars($data['nama_jenis']); ?>
+                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditJenisDokumen">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </td>
                     </tr>
                     <tr>
                         <th>Judul Dokumen</th>
@@ -319,6 +430,43 @@ if (isset($_POST['edit_judul_dokumen'])) {
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
                                     <button type="submit" name="edit_nomor_dokumen" class="btn btn-warning">
                                         <i class="fas fa-save"></i> Simpan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="modalEditJenisDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditJenisDokumenLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['detail_pengesahan_csrf']); ?>">
+                                <div class="modal-header bg-warning">
+                                    <h5 class="modal-title" id="modalEditJenisDokumenLabel">Edit Jenis Dokumen</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group mb-0">
+                                        <label class="required-label" for="id_jenis">Jenis Dokumen</label>
+                                        <select name="id_jenis" id="id_jenis" class="form-control" required>
+                                            <?php foreach ($daftar_jenis_dokumen as $jenis_dokumen): ?>
+                                                <option value="<?= (int) $jenis_dokumen['id_jenis']; ?>" <?= (int) $jenis_dokumen['id_jenis'] === (int) $data['id_jenis'] ? 'selected' : ''; ?>>
+                                                    <?= htmlspecialchars($jenis_dokumen['nama_jenis']); ?> (<?= htmlspecialchars($jenis_dokumen['kode_jenis']); ?>)
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <small class="form-text text-muted">
+                                            Nomor surat tidak berubah otomatis. Gunakan tombol Edit pada Nomor Surat bila kode jenis pada nomor juga perlu dikoreksi.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                    <button type="submit" name="edit_jenis_dokumen" class="btn btn-warning">
+                                        <i class="fas fa-save"></i> Simpan Jenis Dokumen
                                     </button>
                                 </div>
                             </form>

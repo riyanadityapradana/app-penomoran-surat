@@ -365,10 +365,6 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 </script>
 
 <style>
-	.pengesahan-data-layout {
-		align-items: flex-start;
-	}
-
 	.pengesahan-section-title {
 		font-size: 1.35rem;
 		font-weight: 500;
@@ -419,21 +415,6 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 		margin-bottom: 0 !important;
 	}
 
-	.pengesahan-chart-wrap {
-		min-height: 430px;
-	}
-
-	.pengesahan-chart-note {
-		margin-top: .75rem;
-		font-size: .9rem;
-		color: #4d5965;
-	}
-
-	.pengesahan-chart-note ul {
-		margin: .35rem 0 0 1.1rem;
-		padding: 0;
-	}
-
 	.pengesahan-date {
 		display: block;
 		margin-top: .35rem;
@@ -454,11 +435,6 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 		font-weight: 700;
 	}
 
-	@media (max-width: 991.98px) {
-		.pengesahan-chart-wrap {
-			margin-top: 1.5rem;
-		}
-	}
 </style>
 
 <!-- Main content -->
@@ -516,77 +492,8 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 					</div>
 				</form>
 
-				<!-- Statistik Pengesahan per Pokja -->
-				<?php
-				// Data untuk chart pengesahan
-				$chart_labels_pengesahan = [];
-				$chart_data_pengesahan = [];
-				$chart_details_pengesahan = [];
-				$chart_group_notes_pengesahan = [];
-				$where_chart = "WHERE u.level = 'Pokja'";
-				$is_filter_pokja = $filter_pokja > 0;
-				$join_filter_standard = $filter_standard_ep !== ''
-					? " AND p.elemen_penilaian = '$filter_standard_ep_sql'"
-					: '';
-				if ($is_filter_pokja) {
-					$where_chart .= " AND u.id_user = $filter_pokja";
-					$q_chart_pengesahan = mysqli_query($config, "
-						SELECT
-							u.kode_pokja,
-							u.nama_lengkap,
-							COUNT(p.id_pengajuan) AS total_pengesahan
-						FROM tb_user u
-						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'$join_filter_standard
-						$where_chart
-						GROUP BY u.id_user
-						ORDER BY total_pengesahan DESC
-					");
-				} else {
-					$q_chart_pengesahan = mysqli_query($config, "
-						SELECT
-							u.kode_pokja,
-							u.nama_lengkap,
-							COUNT(p.id_pengajuan) AS total_pengesahan
-						FROM tb_user u
-						LEFT JOIN tb_pengajuan_dokumen p ON u.id_user = p.id_user AND p.status = 'Selesai'$join_filter_standard
-						$where_chart
-						GROUP BY u.id_user
-						ORDER BY u.kode_pokja ASC, u.nama_lengkap ASC
-					");
-				}
-
-				$chart_grouped_pengesahan = [];
-				while ($row = mysqli_fetch_assoc($q_chart_pengesahan)) {
-					$kode = $row['kode_pokja'];
-					if (!isset($chart_grouped_pengesahan[$kode])) {
-						$chart_grouped_pengesahan[$kode] = [
-							'label' => $kode,
-							'total' => 0,
-							'details' => []
-						];
-					}
-
-					$total_pengesahan = (int)$row['total_pengesahan'];
-					$chart_grouped_pengesahan[$kode]['total'] += $total_pengesahan;
-					if ($is_filter_pokja || $total_pengesahan > 0) {
-						$chart_grouped_pengesahan[$kode]['details'][] = $row['nama_lengkap'] . ' (' . $total_pengesahan . ')';
-					}
-				}
-
-				foreach ($chart_grouped_pengesahan as $item_chart) {
-					$details = !empty($item_chart['details']) ? implode(', ', $item_chart['details']) : $item_chart['label'] . ' (0)';
-					$chart_labels_pengesahan[] = $item_chart['label'];
-					$chart_data_pengesahan[] = $item_chart['total'];
-					$chart_details_pengesahan[] = $details;
-
-					if (count($item_chart['details']) > 1) {
-						$chart_group_notes_pengesahan[] = $item_chart['label'] . ': ' . $details;
-					}
-				}
-				?>
-
-				<div class="row pengesahan-data-layout">
-					<div class="col-lg-7">
+				<div class="row">
+					<div class="col-12">
 						<h4 class="text-center pengesahan-section-title">Tabel Daftar Dokumen yang Telah Disahkan</h4>
 						<!-- TABEL DATA -->
 						<div class="pengesahan-table-scroll">
@@ -596,10 +503,10 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 										<th>No</th>
 										<th>No Dokumen</th>
 										<th>Jenis Dokumen</th>
-										<th>Judul Dokumen</th>
-										<th>Tgl Dokumen</th>
-										<th>Pokja</th>
 										<th>Standard EP</th>
+										<th>Judul Dokumen</th>
+										<th>Pokja</th>
+										<th>Tgl Dokumen</th>
 										<th>Status</th>
 										<!-- <th>File PDF Final</th> -->
 									</tr>
@@ -661,10 +568,10 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 													</form>
 												</td>
 												<td>{$jenis_dokumen_html}</td>
-												<td>{$row['judul_dokumen']}</td>
-												<td>{$tgl_dok}</td>
-												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
 												<td>" . htmlspecialchars($row['elemen_penilaian']) . "</td>
+												<td>{$row['judul_dokumen']}</td>
+												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
+												<td>{$tgl_dok}</td>
 												<td><span class='badge badge-primary'>Selesai</span></td>
 											</tr>";
 											$modal_edit_final .= "
@@ -722,22 +629,6 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 							<?= $modal_edit_final; ?>
 						</div>
 					</div>
-					<div class="col-lg-5">
-						<h4 class="text-center pengesahan-section-title">Grafik Pengesahan Dokumen per Pokja</h4>
-						<div class="pengesahan-chart-wrap">
-							<div id="pengesahanChart" style="width:100%; height:400px;"></div>
-						</div>
-						<?php if (!empty($chart_group_notes_pengesahan)) { ?>
-							<div class="pengesahan-chart-note">
-								<strong>Rincian pokja dengan beberapa program:</strong>
-								<ul>
-									<?php foreach ($chart_group_notes_pengesahan as $note_pengesahan) { ?>
-										<li><?= htmlspecialchars($note_pengesahan); ?></li>
-									<?php } ?>
-								</ul>
-							</div>
-						<?php } ?>
-					</div>
 				</div>
 			</div>
 		</div>
@@ -745,7 +636,6 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 </section>
 
 <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
-<script src="https://code.highcharts.com/highcharts.js"></script>
 <script>
 var standardEpPerPokja = <?= json_encode($standard_ep_per_pokja, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var semuaStandardEp = <?= json_encode($semua_standard_ep, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -816,41 +706,4 @@ $(document).ready(function() {
     });
 });
 
-console.log('Labels Pengesahan:', <?php echo json_encode($chart_labels_pengesahan); ?>);
-console.log('Data Pengesahan:', <?php echo json_encode($chart_data_pengesahan); ?>);
-var detailPengesahan = <?php echo json_encode($chart_details_pengesahan); ?>;
-Highcharts.chart('pengesahanChart', {
-    chart: {
-        type: 'column'
-    },
-    title: {
-        text: 'Persentase Pengesahan Dokumen per Pokja'
-    },
-    xAxis: {
-        categories: <?php echo json_encode($chart_labels_pengesahan); ?>,
-        title: {
-            text: 'Nama Pokja'
-        }
-    },
-    yAxis: {
-        title: {
-            text: 'Total Pengesahan Dokumen'
-        },
-        allowDecimals: false
-    },
-    series: [{
-        name: 'Total Dokumen yang Telah Disahkan',
-        data: <?php echo json_encode($chart_data_pengesahan); ?>,
-        color: '#006633'
-    }],
-    tooltip: {
-        formatter: function() {
-            var detail = detailPengesahan[this.point.index] || this.x;
-            return '<b>' + this.x + '</b><br>Total: <b>' + this.y + '</b><br>' + detail;
-        }
-    },
-    credits: {
-        enabled: false
-    }
-});
 </script>
