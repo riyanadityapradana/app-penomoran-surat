@@ -1,5 +1,6 @@
 <?php
 require_once("../config/upload_helper.php");
+require_once("../config/dokumen_helper.php");
 
 if (!isset($_SESSION['id_user'])) {
     echo "<script>alert('Silakan login terlebih dahulu!');window.location='../login.php';</script>";
@@ -41,6 +42,7 @@ if ($data['status'] != 'Menunggu Verifikasi') {
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $id_pengajuan = mysqli_real_escape_string($config, $data['id_pengajuan']);
     $id_jenis = isset($_POST['id_jenis']) ? (int) $_POST['id_jenis'] : 0;
+    $bentuk_dokumen = trim((string) ($_POST['bentuk_dokumen'] ?? ''));
     $judul_dokumen = mysqli_real_escape_string($config, $_POST['judul_dokumen']);
     $tanggal_dokumen = mysqli_real_escape_string($config, $_POST['tanggal_dokumen']);
     $no_tel = mysqli_real_escape_string($config, $_POST['no_telepon'] ?? '');
@@ -49,21 +51,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $file_draft = (string) ($data['file_draft'] ?? '');
     $file_draft_baru = '';
 
-    $stmtJenis = mysqli_prepare($config, 'SELECT id_jenis, kode_jenis FROM tb_jenis_dokumen WHERE id_jenis = ? AND kode_jenis <> \'\' LIMIT 1');
-    mysqli_stmt_bind_param($stmtJenis, 'i', $id_jenis);
-    mysqli_stmt_execute($stmtJenis);
-    $jenisValid = mysqli_fetch_assoc(mysqli_stmt_get_result($stmtJenis));
-    mysqli_stmt_close($stmtJenis);
-
-    if (!$jenisValid) {
-        echo "<script>alert('Jenis dokumen tidak valid. Silakan pilih kembali dari daftar.');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
+    if (!app_validate_bentuk_dokumen($bentuk_dokumen)) {
+        echo "<script>alert('Bentuk dokumen tidak valid. Silakan pilih kembali dari daftar.');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
         exit;
     }
 
-    $uploadRules = app_pengajuan_draft_upload_rules($jenisValid['kode_jenis']);
+    $jenisResult = app_resolve_jenis_pengajuan($config, $bentuk_dokumen, $id_jenis);
+    if (!$jenisResult['ok']) {
+        echo "<script>alert('" . addslashes($jenisResult['message']) . "');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
+        exit;
+    }
+    $jenisValid = $jenisResult['data'];
+    $id_jenis = (int) $jenisValid['id_jenis'];
+
+    $bentuk_dokumen_sql = mysqli_real_escape_string($config, $bentuk_dokumen);
+
+    $uploadRules = app_pengajuan_draft_upload_rules($bentuk_dokumen);
     $fileExtensionLama = strtolower(pathinfo($file_draft, PATHINFO_EXTENSION));
     if (empty($_FILES['file_draft']['name']) && !in_array($fileExtensionLama, $uploadRules['extensions'], true)) {
-        echo "<script>alert('File lama tidak sesuai dengan jenis dokumen yang dipilih. Silakan unggah file Word pengganti.');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
+        echo "<script>alert('File lama tidak sesuai dengan Bentuk Dokumen yang dipilih. Silakan unggah file pengganti dengan format yang diwajibkan.');window.location='main_pokja.php?unit=update_pengajuan&id_pengajuan={$id_pengajuan}';</script>";
         exit;
     }
 
@@ -93,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $setParts = [
         "id_jenis = '$id_jenis'",
+        "bentuk_dokumen = '$bentuk_dokumen_sql'",
         "judul_dokumen = '$judul_dokumen'",
         "tanggal_dokumen = '$tanggal_dokumen'",
         "elemen_penilaian = '$elemen_penilaian'",
@@ -142,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-sm-6">
+                        <div class="col-lg-4">
                             <div class="form-group">
                                 <label class="required-label">Standard EP</label>
                                 <?php
@@ -163,7 +170,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <small class="form-text text-muted"><b>Note:</b> pokja "<?php echo $kode_pokja; ?>" sudah otomatis.</small>
                             </div>
                         </div>
-                        <div class="col-sm-6">
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label class="required-label" for="bentukDokumen">Bentuk Dokumen</label>
+                                <select name="bentuk_dokumen" id="bentukDokumen" class="form-control select2" required>
+                                    <option value="">-- Pilih Bentuk Dokumen --</option>
+                                    <?php foreach (app_bentuk_dokumen_options() as $bentuk): ?>
+                                        <option value="<?= htmlspecialchars($bentuk); ?>" <?= $bentuk === ($data['bentuk_dokumen'] ?? '') ? 'selected' : ''; ?>>
+                                            <?= htmlspecialchars($bentuk); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
                             <div class="form-group">
                                 <label class="required-label">Jenis Dokumen</label>
                                 <select name="id_jenis" id="jenisDokumen" class="form-control" required>
@@ -176,6 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     }
                                     ?>
                                 </select>
+                                <small class="form-text text-muted" id="jenisDokumenHelp"></small>
                             </div>
                         </div>
                     </div>
@@ -204,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <?php endif; ?>
 
                             <?php
-                            $currentUploadRules = app_pengajuan_draft_upload_rules($data['kode_jenis'] ?? '');
+                            $currentUploadRules = app_pengajuan_draft_upload_rules($data['bentuk_dokumen'] ?? '');
                             $currentFileExtension = strtolower(pathinfo((string) ($data['file_draft'] ?? ''), PATHINFO_EXTENSION));
                             $currentFileIsPdf = $currentFileExtension === 'pdf';
                             ?>
@@ -215,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <i class="fas <?= $currentFileIsPdf ? 'fa-file-pdf' : 'fa-file-word'; ?>"></i> Lihat File <?= $currentFileIsPdf ? 'PDF' : 'Word'; ?> Lama
                                     </a><br>
                                 <?php endif; ?>
-                                <input type="file" name="file_draft" id="draftFileInput" class="form-control-file js-file-preview" data-preview="#draftPreview" accept="<?= htmlspecialchars($currentUploadRules['accept']); ?>">
+                                <input type="file" name="file_draft" id="draftFileInput" class="form-control-file js-file-preview" data-preview="#draftPreview" data-current-extension="<?= htmlspecialchars($currentFileExtension); ?>" accept="<?= htmlspecialchars($currentUploadRules['accept']); ?>">
                                 <small class="form-text text-muted" id="draftFileHelp"><?= htmlspecialchars($currentUploadRules['help']); ?></small>
                                 <div id="draftPreview" class="upload-preview"></div>
                             </div>
@@ -239,29 +260,84 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var bentukSelect = document.getElementById('bentukDokumen');
     var jenisSelect = document.getElementById('jenisDokumen');
     var fileInput = document.getElementById('draftFileInput');
     var fileLabel = document.getElementById('draftFileLabel');
     var fileHelp = document.getElementById('draftFileHelp');
+    var jenisHelp = document.getElementById('jenisDokumenHelp');
 
-    function sinkronkanFormatDraft() {
-        if (!jenisSelect || !fileInput || !fileLabel || !fileHelp) return;
-        var selected = jenisSelect.options[jenisSelect.selectedIndex];
-        var isDokumenBukti = selected && selected.getAttribute('data-kode-jenis') === 'DB';
-        fileInput.accept = isDokumenBukti ? '.doc,.docx,.pdf,application/pdf' : '.doc,.docx';
-        fileLabel.innerHTML = isDokumenBukti
-            ? 'File Dokumen Bukti (Word atau PDF, maksimal 10MB) <small>(Kosongkan jika tidak ingin diubah)</small>'
-            : 'File Draft (Word, maksimal 10MB) <small>(Kosongkan jika tidak ingin diubah)</small>';
-        fileHelp.textContent = isDokumenBukti
-            ? 'Unggah salah satu file: Word (DOC/DOCX) atau PDF.'
-            : 'Format yang diperbolehkan: DOC atau DOCX.';
+    function refreshJenisSelect() {
+        if (window.jQuery && window.jQuery(jenisSelect).hasClass('select2-hidden-accessible')) {
+            window.jQuery(jenisSelect).trigger('change.select2');
+        }
     }
 
-    jenisSelect.addEventListener('change', sinkronkanFormatDraft);
+    function sinkronkanBentukDokumen() {
+        if (!bentukSelect || !jenisSelect || !fileInput || !fileLabel || !fileHelp || !jenisHelp) return;
+
+        var bentuk = bentukSelect.value;
+        var isRegulasi = bentuk === 'Regulasi';
+        var dbOption = Array.prototype.find.call(jenisSelect.options, function(option) {
+            return option.getAttribute('data-kode-jenis') === 'DB';
+        });
+        var currentExtension = (fileInput.getAttribute('data-current-extension') || '').toLowerCase();
+        var currentFileValid = isRegulasi
+            ? currentExtension === 'doc' || currentExtension === 'docx'
+            : currentExtension === 'pdf';
+
+        fileInput.value = '';
+        if (!bentuk) {
+            jenisSelect.value = '';
+            jenisSelect.disabled = true;
+            jenisSelect.required = false;
+            fileInput.disabled = true;
+            fileInput.required = false;
+            fileInput.accept = '.doc,.docx,.pdf,application/pdf';
+            fileLabel.innerHTML = 'File Dokumen <small>(pilih Bentuk Dokumen terlebih dahulu)</small>';
+            fileHelp.textContent = 'Pilih Bentuk Dokumen terlebih dahulu.';
+            jenisHelp.textContent = 'Pilih Bentuk Dokumen terlebih dahulu.';
+            refreshJenisSelect();
+            return;
+        } else if (isRegulasi) {
+            fileInput.disabled = false;
+            jenisSelect.disabled = false;
+            jenisSelect.required = true;
+            if (dbOption) dbOption.disabled = true;
+            if (jenisSelect.options[jenisSelect.selectedIndex] && jenisSelect.options[jenisSelect.selectedIndex].getAttribute('data-kode-jenis') === 'DB') {
+                jenisSelect.value = '';
+            }
+            fileInput.accept = '.doc,.docx';
+            fileLabel.innerHTML = 'File Draft Regulasi (Word, maksimal 10MB) <small>(Kosongkan jika tidak ingin diubah)</small>';
+            fileHelp.textContent = currentFileValid
+                ? 'File lama sudah berformat Word. Pilih file hanya jika ingin menggantinya.'
+                : 'File lama tidak sesuai. Wajib unggah file Word (DOC/DOCX).';
+            jenisHelp.textContent = 'Jenis Dokumen wajib dipilih untuk Regulasi.';
+        } else {
+            fileInput.disabled = false;
+            if (dbOption) {
+                dbOption.disabled = false;
+                jenisSelect.value = dbOption.value;
+            }
+            jenisSelect.required = false;
+            jenisSelect.disabled = true;
+            fileInput.accept = '.pdf,application/pdf';
+            fileLabel.innerHTML = 'File Dokumen (PDF, maksimal 10MB) <small>(Kosongkan jika tidak ingin diubah)</small>';
+            fileHelp.textContent = currentFileValid
+                ? 'File lama sudah berformat PDF. Pilih file hanya jika ingin menggantinya.'
+                : 'File lama tidak sesuai. Wajib unggah file PDF.';
+            jenisHelp.textContent = 'Jenis Dokumen otomatis dikunci sebagai Dokumen Bukti (DB).';
+        }
+
+        fileInput.required = !currentFileValid;
+        refreshJenisSelect();
+    }
+
+    bentukSelect.addEventListener('change', sinkronkanBentukDokumen);
     if (window.jQuery) {
-        window.jQuery(jenisSelect).on('change select2:select select2:clear', sinkronkanFormatDraft);
+        window.jQuery(bentukSelect).on('change select2:select select2:clear', sinkronkanBentukDokumen);
     }
-    sinkronkanFormatDraft();
+    sinkronkanBentukDokumen();
 
     document.querySelectorAll('.js-file-preview').forEach(function(input) {
         input.addEventListener('change', function() {

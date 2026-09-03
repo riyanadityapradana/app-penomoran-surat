@@ -103,6 +103,7 @@ $data = mysqli_query($config, $query);
                             <th style="font-size: 14px;" width="120" responsive>Standard EP</th>
                             <th style="font-size: 14px;" width="120" responsive>No Dokumen</th>
                             <th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
+                            <th style="font-size: 14px;" width="130" responsive>Bentuk Dokumen</th>
                             <th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
                             <th style="font-size: 14px;" width="120" responsive>Tgl Sah/ Ditolak</th>
                             <th>Status</th>
@@ -119,6 +120,7 @@ $data = mysqli_query($config, $query);
                                         <td class='text-long'>{$row['elemen_penilaian']}</td>
                                         <td>" . (!empty($row['nomor_surat']) ? $row['nomor_surat'] : '-') . "</td>
                                         <td>{$row['nama_jenis']}</td>
+                                        <td>" . htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-') . "</td>
                                         <td class='text-long'>{$row['judul_dokumen']}</td>
                                         <td>" . (!empty($row['tanggal_disetujui']) ? date('d-m-Y', strtotime($row['tanggal_disetujui'])) : '-') . "</td>
                                         <td><span class='badge badge-";
@@ -133,7 +135,7 @@ $data = mysqli_query($config, $query);
                                 $no++;
                             }
                         } else {
-                            echo "<tr><td colspan='7'><em>Tidak ada data dokumen</em></td></tr>";
+                            echo "<tr><td colspan='9'><em>Tidak ada data dokumen</em></td></tr>";
                         }
                         ?>
                     </tbody>

@@ -41,6 +41,7 @@
 							<th>No</th>
 							<th style="font-size: 14px;" width="100" responsive>Tgl Ajuan</th>
 							<th style="font-size: 14px;" width="100" responsive>Standard EP</th>
+							<th style="font-size: 14px;" width="130" responsive>Bentuk Dokumen</th>
 							<th style="font-size: 14px;" width="190" responsive>Judul Dokumen</th>
 							<th style="font-size: 14px;" width="90" responsive>Status</th>
 							<th style="font-size: 14px;" width="120" responsive>File Draft</th>
@@ -66,11 +67,13 @@
 								$tgl_dok = date('d-m-Y', strtotime($row['tanggal_dokumen']));
 								$tgl_ajuan = date('d-m-Y', strtotime($row['tanggal_ajuan']));
 								$status = $row['status'];
+								$bentukDokumen = htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-');
 
 								echo "<tr>
 									<td>{$no}</td>
 									<td>{$tgl_ajuan}</td>
 									<td class='text-long text-left'>{$row['elemen_penilaian']}<br><small style='color: #6c757d;'>Jenis Dokumen: {$row['nama_jenis']}</small></td>
+									<td>{$bentukDokumen}</td>
 									<td class='text-long text-left' style='width: 190px;'>{$row['judul_dokumen']}</td>
 									<td>";
 

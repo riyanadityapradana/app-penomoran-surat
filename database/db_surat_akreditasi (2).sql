@@ -69,7 +69,6 @@ INSERT INTO `tb_jenis_dokumen` (`id_jenis`, `nama_jenis`, `kode_jenis`) VALUES
 (3, 'Pedoman', 'PED'),
 (4, 'Panduan', 'PAD'),
 (5, 'Laporan', 'LAP'),
-(6, 'Undangan', 'UND'),
 (7, 'Dokumen Bukti', 'DB');
 
 -- --------------------------------------------------------
@@ -94,7 +93,8 @@ CREATE TABLE `tb_pengajuan_dokumen` (
   `nomor_surat` varchar(100) DEFAULT NULL,
   `file_final` varchar(255) DEFAULT NULL,
   `catatan_admin` text DEFAULT NULL,
-  `no_tlp` varchar(15) NOT NULL
+  `no_tlp` varchar(15) NOT NULL,
+  `bentuk_dokumen` enum('Regulasi','Dokumen Bukti','Dokumen Lainnya') DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- --------------------------------------------------------

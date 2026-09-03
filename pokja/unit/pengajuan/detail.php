@@ -1,5 +1,6 @@
 <?php
 require_once("../config/koneksi.php");
+require_once("../config/dokumen_helper.php");
 
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
@@ -26,6 +27,8 @@ if (isset($_GET['id_pengajuan'])) {
           </script>";
     exit;
 }
+
+$is_regulasi_workflow = app_uses_regulasi_workflow($data['bentuk_dokumen'] ?? '', $data['nomor_surat'] ?? '');
 
 // --- WARNA BADGE STATUS --- //
 function getBadgeClass($status) {
@@ -65,6 +68,10 @@ function getBadgeClass($status) {
                         <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
                     </tr>
                     <tr>
+                        <th>Bentuk Dokumen</th>
+                        <td><?= htmlspecialchars(app_display_bentuk_dokumen($data['bentuk_dokumen'] ?? '')); ?></td>
+                    </tr>
+                    <tr>
                         <th>Judul Dokumen</th>
                         <td><?= htmlspecialchars($data['judul_dokumen']); ?></td>
                     </tr>
@@ -86,7 +93,9 @@ function getBadgeClass($status) {
                     <?php if ($data['status'] == 'Disetujui' || $data['status'] == 'Selesai' || $data['status'] == 'Ditolak'): ?>
                     <tr>
                         <th>Nomor Dokumen</th>
-                        <td><?= !empty($data['nomor_surat']) ? htmlspecialchars($data['nomor_surat']) : '<em>Belum ada nomor</em>'; ?></td>
+                        <td><?= !empty($data['nomor_surat'])
+                            ? htmlspecialchars($data['nomor_surat'])
+                            : ($is_regulasi_workflow ? '<em>Belum ada nomor</em>' : '<em>Tidak memerlukan nomor dokumen</em>'); ?></td>
                     </tr>
                     <tr>
                         <th>Catatan Admin</th>

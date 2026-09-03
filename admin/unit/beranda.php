@@ -241,7 +241,6 @@ while ($row = mysqli_fetch_assoc($q_trend)) {
                                             'Laporan' => 'badge-secondary',
                                             'Panduan' => 'badge-warning',
                                             'Pedoman' => 'badge-info',
-                                            'Undangan' => 'badge-danger',
                                             'Dokumen Bukti' => 'badge-dark',
                                         ];
                                         mysqli_data_seek($q_rekap, 0); // Reset pointer untuk tabel

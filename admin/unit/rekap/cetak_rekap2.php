@@ -92,6 +92,7 @@ $data = mysqli_query($config, $query);
                 <th>Tanggal Pengajuan</th>
                 <th>No Dokumen</th>
                 <th>Jenis Dokumen</th>
+                <th>Bentuk Dokumen</th>
                 <th>Judul Dokumen</th>
                 <th>Tanggal Disahkan/ Ditolak</th>
                 <th>Kode Pokja</th>
@@ -108,6 +109,7 @@ $data = mysqli_query($config, $query);
                             <td>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
                             <td>" . (!empty($row['nomor_surat']) ? $row['nomor_surat'] : '-') . "</td>
                             <td>{$row['nama_jenis']}</td>
+                            <td>" . htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-') . "</td>
                             <td class='text-left'>{$row['judul_dokumen']}</td>
                             <td>" . (!empty($row['tanggal_disetujui']) ? date('d-m-Y', strtotime($row['tanggal_disetujui'])) : '-') . "</td>
                             <td>{$row['kode_pokja']}</td>
@@ -116,7 +118,7 @@ $data = mysqli_query($config, $query);
                     $no++;
                 }
             } else {
-                echo "<tr><td colspan='8' class='no-data'>Tidak ada data untuk filter ini.</td></tr>";
+                echo "<tr><td colspan='9' class='no-data'>Tidak ada data untuk filter ini.</td></tr>";
             }
             ?>
         </tbody>

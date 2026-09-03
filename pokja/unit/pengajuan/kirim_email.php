@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['kirim_email'])) {
         <table border='0' cellspacing='0' cellpadding='6' style='border-collapse: collapse;'>
             <tr><td><b>Judul Dokumen</b></td><td>: " . htmlspecialchars($data['judul_dokumen']) . "</td></tr>
             <tr><td><b>Jenis Dokumen</b></td><td>: " . htmlspecialchars($data['nama_jenis']) . "</td></tr>
+            <tr><td><b>Bentuk Dokumen</b></td><td>: " . htmlspecialchars(!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-') . "</td></tr>
             <tr><td><b>Diajukan Oleh</b></td><td>: " . htmlspecialchars($data['nama_lengkap']) . "</td></tr>
             <tr><td><b>Tanggal Pengajuan</b></td><td>: " . htmlspecialchars(app_format_datetime_id($data['tanggal_ajuan'])) . "</td></tr>
         </table>

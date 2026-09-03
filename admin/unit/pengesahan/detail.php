@@ -1,6 +1,7 @@
 <?php
 require_once("../config/koneksi.php");
 require_once("../config/upload_helper.php");
+require_once("../config/dokumen_helper.php");
 
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
@@ -24,6 +25,11 @@ if (isset($_GET['id_pengajuan'])) {
     header('Location: main_admin.php?unit=pengesahan&err=ID pengesahan tidak ditemukan!');
     exit;
 }
+
+$is_regulasi_workflow = app_uses_regulasi_workflow($data['bentuk_dokumen'] ?? '', $data['nomor_surat'] ?? '');
+$tanggal_pengesahan_efektif = !empty($data['tanggal_pengesahan'])
+    ? $data['tanggal_pengesahan']
+    : (!empty($data['tanggal_disetujui']) ? $data['tanggal_disetujui'] : $data['tanggal_ajuan']);
 
 if (empty($_SESSION['detail_pengesahan_csrf'])) {
     $_SESSION['detail_pengesahan_csrf'] = bin2hex(random_bytes(32));
@@ -91,6 +97,11 @@ if (isset($_POST['edit_upload_pdf'])) {
 
 if (isset($_POST['edit_nomor_dokumen'])) {
     $nomor_surat = isset($_POST['nomor_surat']) ? trim($_POST['nomor_surat']) : '';
+
+    if (!$is_regulasi_workflow) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Dokumen non-Regulasi tidak menggunakan nomor dokumen!');
+        exit;
+    }
 
     if ($nomor_surat === '') {
         header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Nomor dokumen tidak boleh kosong!');
@@ -187,10 +198,15 @@ if (isset($_POST['edit_jenis_dokumen'])) {
         exit;
     }
 
+    if (!$is_regulasi_workflow) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Jenis Dokumen non-Regulasi dikunci sebagai Dokumen Bukti (DB)!');
+        exit;
+    }
+
     $stmt_jenis = mysqli_prepare($config, "
         SELECT id_jenis, nama_jenis, kode_jenis
         FROM tb_jenis_dokumen
-        WHERE id_jenis = ? AND TRIM(kode_jenis) <> ''
+        WHERE id_jenis = ? AND TRIM(kode_jenis) <> '' AND UPPER(TRIM(kode_jenis)) <> 'DB'
         LIMIT 1
     ");
 
@@ -256,6 +272,65 @@ if (isset($_POST['edit_jenis_dokumen'])) {
         $errMsg = urlencode('Gagal memperbarui Jenis Dokumen: ' . $update_error);
     } else {
         $errMsg = urlencode('Gagal menyiapkan pembaruan Jenis Dokumen: ' . mysqli_error($config));
+    }
+
+    header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
+    exit;
+}
+
+if (isset($_POST['edit_bentuk_dokumen'])) {
+    $csrf_token = isset($_POST['csrf_token']) && is_string($_POST['csrf_token'])
+        ? $_POST['csrf_token']
+        : '';
+    $bentuk_dokumen = trim((string) ($_POST['bentuk_dokumen'] ?? ''));
+
+    if (!hash_equals($_SESSION['detail_pengesahan_csrf'], $csrf_token)) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Permintaan edit Bentuk Dokumen tidak valid. Silakan coba kembali!');
+        exit;
+    }
+
+    if (!app_validate_bentuk_dokumen($bentuk_dokumen)) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=Bentuk Dokumen yang dipilih tidak valid!');
+        exit;
+    }
+
+    if ($bentuk_dokumen === trim((string) ($data['bentuk_dokumen'] ?? ''))) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=Bentuk Dokumen tidak berubah.');
+        exit;
+    }
+
+    $bentuk_baru_regulasi = app_is_bentuk_regulasi($bentuk_dokumen);
+    if ($bentuk_baru_regulasi !== $is_regulasi_workflow) {
+        header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . urlencode('Bentuk Dokumen tidak dapat dipindahkan antara alur Regulasi dan non-Regulasi setelah dokumen selesai.'));
+        exit;
+    }
+
+    $stmt_update_bentuk = mysqli_prepare($config, "
+        UPDATE tb_pengajuan_dokumen
+        SET bentuk_dokumen = ?
+        WHERE id_pengajuan = ? AND status = 'Selesai'
+    ");
+
+    if ($stmt_update_bentuk) {
+        $id_pengajuan_update = (int) $id_pengajuan;
+        mysqli_stmt_bind_param($stmt_update_bentuk, 'si', $bentuk_dokumen, $id_pengajuan_update);
+        $update_berhasil = mysqli_stmt_execute($stmt_update_bentuk);
+        $update_error = mysqli_stmt_error($stmt_update_bentuk);
+        $baris_diperbarui = $update_berhasil ? mysqli_stmt_affected_rows($stmt_update_bentuk) : 0;
+        mysqli_stmt_close($stmt_update_bentuk);
+
+        if ($update_berhasil && $baris_diperbarui === 1) {
+            header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&msg=Bentuk Dokumen berhasil diperbarui!');
+            exit;
+        }
+
+        if ($update_berhasil) {
+            $update_error = 'Data tidak berubah karena dokumen tidak lagi berstatus Selesai.';
+        }
+
+        $errMsg = urlencode('Gagal memperbarui Bentuk Dokumen: ' . $update_error);
+    } else {
+        $errMsg = urlencode('Gagal menyiapkan pembaruan Bentuk Dokumen: ' . mysqli_error($config));
     }
 
     header('Location: main_admin.php?unit=detail_pengesahan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
@@ -351,10 +426,14 @@ if (isset($_POST['edit_judul_dokumen'])) {
                     <tr>
                         <th width="200">Nomor Surat</th>
                         <td>
-                            <span class="badge badge-success" style="font-size:1rem;"><?= htmlspecialchars($data['nomor_surat']); ?></span>
-                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditNomorDokumen">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
+                            <?php if ($is_regulasi_workflow): ?>
+                                <span class="badge badge-success" style="font-size:1rem;"><?= htmlspecialchars($data['nomor_surat']); ?></span>
+                                <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditNomorDokumen">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            <?php else: ?>
+                                <span class="text-muted"><i class="fas fa-minus-circle mr-1"></i>Tidak memerlukan nomor dokumen</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
 					<tr>
@@ -374,7 +453,20 @@ if (isset($_POST['edit_judul_dokumen'])) {
                         <th>Jenis Dokumen</th>
                         <td>
                             <?= htmlspecialchars($data['nama_jenis']); ?>
-                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditJenisDokumen">
+                            <?php if ($is_regulasi_workflow): ?>
+                                <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditJenisDokumen">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            <?php else: ?>
+                                <small class="text-muted ml-2">(dikunci otomatis)</small>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Bentuk Dokumen</th>
+                        <td>
+                            <?= htmlspecialchars(app_display_bentuk_dokumen($data['bentuk_dokumen'] ?? '')); ?>
+                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditBentukDokumen">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
                         </td>
@@ -398,7 +490,7 @@ if (isset($_POST['edit_judul_dokumen'])) {
                     </tr>
                     <tr>
                         <th>Tanggal Pengesahan</th>
-                        <td><?= date('d-m-Y', strtotime($data['tanggal_ajuan'])); ?></td>
+                        <td><?= date('d-m-Y H:i', strtotime($tanggal_pengesahan_efektif)); ?></td>
                     </tr>
                     <tr>
                         <th>Status</th>
@@ -410,6 +502,7 @@ if (isset($_POST['edit_judul_dokumen'])) {
                     </tr>
                 </table>
 
+                <?php if ($is_regulasi_workflow): ?>
                 <div class="modal fade" id="modalEditNomorDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditNomorDokumenLabel" aria-hidden="true">
                     <div class="modal-dialog" role="document">
                         <div class="modal-content">
@@ -436,6 +529,7 @@ if (isset($_POST['edit_judul_dokumen'])) {
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <div class="modal fade" id="modalEditJenisDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditJenisDokumenLabel" aria-hidden="true">
                     <div class="modal-dialog" role="document">
@@ -453,6 +547,7 @@ if (isset($_POST['edit_judul_dokumen'])) {
                                         <label class="required-label" for="id_jenis">Jenis Dokumen</label>
                                         <select name="id_jenis" id="id_jenis" class="form-control" required>
                                             <?php foreach ($daftar_jenis_dokumen as $jenis_dokumen): ?>
+                                                <?php if (strtoupper(trim($jenis_dokumen['kode_jenis'])) === 'DB') continue; ?>
                                                 <option value="<?= (int) $jenis_dokumen['id_jenis']; ?>" <?= (int) $jenis_dokumen['id_jenis'] === (int) $data['id_jenis'] ? 'selected' : ''; ?>>
                                                     <?= htmlspecialchars($jenis_dokumen['nama_jenis']); ?> (<?= htmlspecialchars($jenis_dokumen['kode_jenis']); ?>)
                                                 </option>
@@ -467,6 +562,42 @@ if (isset($_POST['edit_judul_dokumen'])) {
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
                                     <button type="submit" name="edit_jenis_dokumen" class="btn btn-warning">
                                         <i class="fas fa-save"></i> Simpan Jenis Dokumen
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="modalEditBentukDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditBentukDokumenLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['detail_pengesahan_csrf']); ?>">
+                                <div class="modal-header bg-warning">
+                                    <h5 class="modal-title" id="modalEditBentukDokumenLabel">Edit Bentuk Dokumen</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group mb-0">
+                                        <label class="required-label" for="bentuk_dokumen">Bentuk Dokumen</label>
+                                        <select name="bentuk_dokumen" id="bentuk_dokumen" class="form-control" required>
+                                            <option value="">-- Pilih Bentuk Dokumen --</option>
+                                            <?php foreach (app_bentuk_dokumen_options() as $bentuk): ?>
+                                                <?php if (app_is_bentuk_regulasi($bentuk) !== $is_regulasi_workflow) continue; ?>
+                                                <option value="<?= htmlspecialchars($bentuk); ?>" <?= $bentuk === ($data['bentuk_dokumen'] ?? '') ? 'selected' : ''; ?>>
+                                                    <?= htmlspecialchars($bentuk); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                    <button type="submit" name="edit_bentuk_dokumen" class="btn btn-warning">
+                                        <i class="fas fa-save"></i> Simpan Bentuk Dokumen
                                     </button>
                                 </div>
                             </form>

@@ -38,18 +38,23 @@ function app_wa_verifikasi_message($data, $nomorSurat)
         . "Pengajuan dokumen Anda telah DISETUJUI dan sudah dibuatkan nomor dokumen.\n\n"
         . "No Dokumen: {$nomorSurat}\n"
         . "Judul Dokumen: {$data['judul_dokumen']}\n"
-        . "Jenis Dokumen: {$data['nama_jenis']}\n\n"
+        . "Jenis Dokumen: {$data['nama_jenis']}\n"
+        . "Bentuk Dokumen: " . (!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-') . "\n\n"
         . "Silakan cek kembali dokumen. Jika masih ada perubahan, unggah ulang file Word melalui aplikasi sebelum dokumen difinalkan.\n\n"
         . "Terima kasih.";
 }
 
 function app_wa_selesai_message($data)
 {
+    $nomorSurat = trim((string) ($data['nomor_surat'] ?? ''));
+    $nomorLine = $nomorSurat !== '' ? "No Dokumen: {$nomorSurat}\n" : '';
+
     return "Halo Pokja {$data['kode_pokja']},\n\n"
         . "Dokumen Anda sudah SELESAI diproses dan file PDF final sudah tersedia.\n\n"
-        . "No Dokumen: {$data['nomor_surat']}\n"
+        . $nomorLine
         . "Judul Dokumen: {$data['judul_dokumen']}\n"
-        . "Jenis Dokumen: {$data['nama_jenis']}\n\n"
+        . "Jenis Dokumen: {$data['nama_jenis']}\n"
+        . "Bentuk Dokumen: " . (!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-') . "\n\n"
         . "Silakan login ke aplikasi untuk melihat atau mengunduh dokumen final.\n\n"
         . "Terima kasih.";
 }

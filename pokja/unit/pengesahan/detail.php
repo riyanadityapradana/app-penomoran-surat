@@ -1,5 +1,6 @@
 <?php
 require_once("../config/koneksi.php");
+require_once("../config/dokumen_helper.php");
 
 if (isset($_GET['id_pengajuan'])) {
     $id_pengajuan = mysqli_real_escape_string($config, $_GET['id_pengajuan']);
@@ -29,6 +30,10 @@ if (isset($_GET['id_pengajuan'])) {
           </script>";
     exit;
 }
+$is_regulasi_workflow = app_uses_regulasi_workflow($data['bentuk_dokumen'] ?? '', $data['nomor_surat'] ?? '');
+$tanggal_pengesahan_efektif = !empty($data['tanggal_pengesahan'])
+    ? $data['tanggal_pengesahan']
+    : (!empty($data['tanggal_disetujui']) ? $data['tanggal_disetujui'] : $data['tanggal_ajuan']);
 ?>
 
 <section class="content-header">
@@ -46,7 +51,9 @@ if (isset($_GET['id_pengajuan'])) {
                 <table class="table table-bordered">
                     <tr>
                         <th width="200">Nomor Surat</th>
-                        <td><?= htmlspecialchars($data['nomor_surat']); ?></td>
+                        <td><?= !empty($data['nomor_surat'])
+                            ? htmlspecialchars($data['nomor_surat'])
+                            : ($is_regulasi_workflow ? '<em>Nomor dokumen belum tersedia</em>' : '<em>Tidak memerlukan nomor dokumen</em>'); ?></td>
                     </tr>
 					<tr>
                         <th width="200">Kode Pokja</th>
@@ -59,6 +66,10 @@ if (isset($_GET['id_pengajuan'])) {
                     <tr>
                         <th>Jenis Dokumen</th>
                         <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Bentuk Dokumen</th>
+                        <td><?= htmlspecialchars(app_display_bentuk_dokumen($data['bentuk_dokumen'] ?? '')); ?></td>
                     </tr>
                     <tr>
                         <th>Judul Dokumen</th>
@@ -74,7 +85,7 @@ if (isset($_GET['id_pengajuan'])) {
                     </tr>
                     <tr>
                         <th>Tanggal Pengesahan</th>
-                        <td><?= date('d-m-Y', strtotime($data['tanggal_ajuan'])); ?></td>
+                        <td><?= date('d-m-Y H:i', strtotime($tanggal_pengesahan_efektif)); ?></td>
                     </tr>
                     <tr>
                         <th>Status</th>

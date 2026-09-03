@@ -1,4 +1,5 @@
 <?php
+require_once(__DIR__ . '/dokumen_helper.php');
 
 function app_upload_error_message($code)
 {
@@ -83,33 +84,30 @@ function app_validate_phone_id($phone)
     return (bool) preg_match('/^(\+?62|0)8[0-9]{8,13}$/', $clean);
 }
 
-function app_pengajuan_draft_upload_rules($kodeJenis)
+function app_pengajuan_draft_upload_rules($bentukDokumen)
 {
-    $isDokumenBukti = strtoupper(trim((string) $kodeJenis)) === 'DB';
-    $extensions = ['doc', 'docx'];
-    $mimes = [
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/zip',
-        'application/octet-stream'
-    ];
-
-    if ($isDokumenBukti) {
-        $extensions[] = 'pdf';
-        $mimes[] = 'application/pdf';
-    }
+    $isRegulasi = app_is_bentuk_regulasi($bentukDokumen);
+    $extensions = $isRegulasi ? ['doc', 'docx'] : ['pdf'];
+    $mimes = $isRegulasi
+        ? [
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/zip',
+            'application/octet-stream'
+        ]
+        : ['application/pdf', 'application/octet-stream'];
 
     return [
-        'is_dokumen_bukti' => $isDokumenBukti,
+        'is_regulasi' => $isRegulasi,
         'extensions' => $extensions,
         'mimes' => $mimes,
-        'accept' => $isDokumenBukti ? '.doc,.docx,.pdf,application/pdf' : '.doc,.docx',
-        'label' => $isDokumenBukti
-            ? 'File Dokumen Bukti (Word atau PDF, maksimal 10MB)'
-            : 'File Draft (Word, maksimal 10MB)',
-        'help' => $isDokumenBukti
-            ? 'Unggah salah satu file: Word (DOC/DOCX) atau PDF.'
-            : 'Format yang diperbolehkan: DOC atau DOCX.',
+        'accept' => $isRegulasi ? '.doc,.docx' : '.pdf,application/pdf',
+        'label' => $isRegulasi
+            ? 'File Draft Regulasi (Word, maksimal 10MB)'
+            : 'File Dokumen (PDF, maksimal 10MB)',
+        'help' => $isRegulasi
+            ? 'Bentuk Regulasi wajib menggunakan format DOC atau DOCX.'
+            : 'Bentuk Dokumen Bukti dan Dokumen Lainnya wajib menggunakan format PDF.',
         'max_bytes' => 10 * 1024 * 1024
     ];
 }

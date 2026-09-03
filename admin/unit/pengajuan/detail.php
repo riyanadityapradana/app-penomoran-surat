@@ -2,6 +2,7 @@
 require_once("../config/koneksi.php");
 require_once("../config/notifikasi.php");
 require_once("../config/upload_helper.php");
+require_once("../config/dokumen_helper.php");
 require_once("../config/wa_helper.php");
 
 $q_tanggal_pengesahan = mysqli_query($config, "SHOW COLUMNS FROM tb_pengajuan_dokumen LIKE 'tanggal_pengesahan'");
@@ -27,7 +28,78 @@ if (isset($_GET['id_pengajuan'])) {
     exit;
 }
 
-$is_dokumen_bukti = strtoupper(trim((string) ($data['kode_jenis'] ?? ''))) === 'DB';
+$is_regulasi = app_uses_regulasi_workflow($data['bentuk_dokumen'] ?? '', $data['nomor_surat'] ?? '');
+
+if (empty($_SESSION['detail_pengajuan_csrf'])) {
+    $_SESSION['detail_pengajuan_csrf'] = bin2hex(random_bytes(32));
+}
+
+if (isset($_POST['edit_bentuk_dokumen'])) {
+    $csrf_token = isset($_POST['csrf_token']) && is_string($_POST['csrf_token'])
+        ? $_POST['csrf_token']
+        : '';
+    $bentuk_dokumen = trim((string) ($_POST['bentuk_dokumen'] ?? ''));
+
+    if (!hash_equals($_SESSION['detail_pengajuan_csrf'], $csrf_token)) {
+        header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=Permintaan edit Bentuk Dokumen tidak valid. Silakan coba kembali!');
+        exit;
+    }
+
+    if (!app_validate_bentuk_dokumen($bentuk_dokumen)) {
+        header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=Bentuk Dokumen yang dipilih tidak valid!');
+        exit;
+    }
+
+    if ($bentuk_dokumen === trim((string) ($data['bentuk_dokumen'] ?? ''))) {
+        header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&msg=Bentuk Dokumen tidak berubah.');
+        exit;
+    }
+
+    $upload_rules = app_pengajuan_draft_upload_rules($bentuk_dokumen);
+    $file_extension = strtolower(pathinfo((string) ($data['file_draft'] ?? ''), PATHINFO_EXTENSION));
+    if (!in_array($file_extension, $upload_rules['extensions'], true)) {
+        header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=' . urlencode('File saat ini tidak sesuai dengan Bentuk Dokumen yang dipilih. Gunakan tombol Edit untuk mengganti bentuk, jenis, dan file sekaligus.'));
+        exit;
+    }
+
+    $jenis_result = app_resolve_jenis_pengajuan($config, $bentuk_dokumen, (int) $data['id_jenis']);
+    if (!$jenis_result['ok']) {
+        header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=' . urlencode($jenis_result['message'] . ' Gunakan tombol Edit untuk melengkapi Jenis Dokumen.'));
+        exit;
+    }
+    $id_jenis_baru = (int) $jenis_result['data']['id_jenis'];
+
+    $stmt_update_bentuk = mysqli_prepare($config, "
+        UPDATE tb_pengajuan_dokumen
+        SET bentuk_dokumen = ?, id_jenis = ?
+        WHERE id_pengajuan = ? AND status <> 'Selesai'
+    ");
+
+    if ($stmt_update_bentuk) {
+        $id_pengajuan_update = (int) $id_pengajuan;
+        mysqli_stmt_bind_param($stmt_update_bentuk, 'sii', $bentuk_dokumen, $id_jenis_baru, $id_pengajuan_update);
+        $update_berhasil = mysqli_stmt_execute($stmt_update_bentuk);
+        $update_error = mysqli_stmt_error($stmt_update_bentuk);
+        $baris_diperbarui = $update_berhasil ? mysqli_stmt_affected_rows($stmt_update_bentuk) : 0;
+        mysqli_stmt_close($stmt_update_bentuk);
+
+        if ($update_berhasil && $baris_diperbarui === 1) {
+            header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&msg=Bentuk Dokumen berhasil diperbarui!');
+            exit;
+        }
+
+        if ($update_berhasil) {
+            $update_error = 'Data tidak berubah karena dokumen sudah berstatus Selesai.';
+        }
+
+        $errMsg = urlencode('Gagal memperbarui Bentuk Dokumen: ' . $update_error);
+    } else {
+        $errMsg = urlencode('Gagal menyiapkan pembaruan Bentuk Dokumen: ' . mysqli_error($config));
+    }
+
+    header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=' . $errMsg);
+    exit;
+}
 
 function app_final_filename_base($data, $id_pengajuan)
 {
@@ -107,7 +179,9 @@ function app_has_final_upload($file)
 }
 
 if (isset($_POST['upload_final'])) {
-    if (empty($data['nomor_surat'])) {
+    if (!$is_regulasi) {
+        echo "<script>alert('Dokumen non-Regulasi langsung selesai saat diverifikasi dan tidak memerlukan upload final manual.');</script>";
+    } elseif (empty($data['nomor_surat'])) {
         echo "<script>alert('Nomor dokumen belum tersedia. Silakan isi nomor dokumen terlebih dahulu.');</script>";
     } elseif ($data['status'] !== 'Disetujui') {
         echo "<script>alert('Upload final hanya dapat dilakukan pada dokumen berstatus Disetujui.');</script>";
@@ -116,7 +190,10 @@ if (isset($_POST['upload_final'])) {
         $filenameBase = app_final_filename_base($data, $id_pengajuan);
         $hasWordUpload = app_has_final_upload($_FILES['file_word_final'] ?? null);
         $hasPdfUpload = app_has_final_upload($_FILES['file_pdf_final'] ?? null);
-        $finalSelection = app_validate_final_upload_selection($data['kode_jenis'] ?? '', $hasWordUpload, $hasPdfUpload);
+        $finalSelection = [
+            'ok' => $hasWordUpload && $hasPdfUpload,
+            'message' => 'Regulasi wajib mengunggah file final Word dan PDF.'
+        ];
 
         if (!$finalSelection['ok']) {
             echo "<script>alert('" . addslashes($finalSelection['message']) . "');</script>";
@@ -208,6 +285,7 @@ if (isset($_POST['upload_final'])) {
                     <tr><td><b>Kode Pokja</b></td><td>: " . htmlspecialchars($data['kode_pokja']) . "</td></tr>
                     <tr><td><b>Judul Dokumen</b></td><td>: " . htmlspecialchars($data['judul_dokumen']) . "</td></tr>
                     <tr><td><b>Jenis Dokumen</b></td><td>: " . htmlspecialchars($data['nama_jenis']) . "</td></tr>
+                    <tr><td><b>Bentuk Dokumen</b></td><td>: " . htmlspecialchars(app_display_bentuk_dokumen($data['bentuk_dokumen'] ?? '')) . "</td></tr>
                     <tr><td><b>Nomor Surat</b></td><td>: " . htmlspecialchars($data['nomor_surat']) . "</td></tr>
                     <tr><td><b>Status</b></td><td>: Selesai</td></tr>
                 </table>
@@ -222,6 +300,7 @@ if (isset($_POST['upload_final'])) {
                 . "Pokja: <b>" . htmlspecialchars($data['kode_pokja']) . "</b>\n"
                 . "Judul: <b>" . htmlspecialchars($data['judul_dokumen']) . "</b>\n"
                 . "Jenis: <b>" . htmlspecialchars($data['nama_jenis']) . "</b>\n"
+                . "Bentuk: <b>" . htmlspecialchars(app_display_bentuk_dokumen($data['bentuk_dokumen'] ?? '')) . "</b>\n"
                 . "Nomor Surat: <b>" . htmlspecialchars($data['nomor_surat']) . "</b>\n"
                 . "Status: <b>Selesai</b>\n"
                 . "Link: " . htmlspecialchars($pokjaLink);
@@ -253,6 +332,11 @@ if (isset($_POST['upload_final'])) {
 
 if (isset($_POST['edit_nomor_dokumen'])) {
     $nomor_surat = isset($_POST['nomor_surat']) ? trim($_POST['nomor_surat']) : '';
+
+    if (!$is_regulasi) {
+        header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=Dokumen non-Regulasi tidak menggunakan nomor dokumen!');
+        exit;
+    }
 
     if ($nomor_surat === '') {
         header('Location: main_admin.php?unit=detail_pengajuan&id_pengajuan=' . $id_pengajuan . '&err=Nomor dokumen tidak boleh kosong!');
@@ -305,7 +389,7 @@ function getBadgeClass($status) {
                             <i class="fas fa-file-pdf"></i> PDF Final
                         </a>
                     <?php endif; ?>
-                    <?php if (!empty($data['file_draft'])): ?>
+                    <?php if (!empty($data['file_draft']) && preg_match('/\.(doc|docx)$/i', basename($data['file_draft']))): ?>
                         <a href="../assets/upload/draft_final/<?= rawurlencode(basename($data['file_draft'])); ?>"
                            class="btn btn-sm btn-info ml-2" download>
                             <i class="fas fa-file-word"></i> Word Final
@@ -329,6 +413,17 @@ function getBadgeClass($status) {
                     <tr>
                         <th>Jenis Surat</th>
                         <td><?= htmlspecialchars($data['nama_jenis']); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Bentuk Dokumen</th>
+                        <td>
+                            <?= htmlspecialchars(app_display_bentuk_dokumen($data['bentuk_dokumen'] ?? '')); ?>
+                            <?php if ($data['status'] !== 'Selesai'): ?>
+                                <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditBentukDokumen">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                     <tr>
                         <th>Standard EP</th>
@@ -361,27 +456,23 @@ function getBadgeClass($status) {
                                     class="btn btn-sm btn-danger ml-2">
                                     <i class="fas fa-times"></i> Tolak
                                 </a>
-                            <?php elseif ($data['status'] == 'Disetujui'): ?>
-                                <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2" onsubmit="return prepareFinalUpload(<?= $is_dokumen_bukti ? 'true' : 'false'; ?>);">
+                            <?php elseif ($data['status'] == 'Disetujui' && $is_regulasi): ?>
+                                <form method="POST" enctype="multipart/form-data" class="d-inline-block ml-2" onsubmit="return prepareFinalUpload();">
                                     <input type="hidden" name="id_pengajuan" value="<?= $data['id_pengajuan']; ?>">
                                     <span class="d-inline-block mr-2">
-                                        <small class="d-block font-weight-bold">Word Final<?= $is_dokumen_bukti ? ' (opsional)' : ' *'; ?></small>
-                                        <input type="file" name="file_word_final" id="fileWordFinal" accept=".doc,.docx" <?= $is_dokumen_bukti ? '' : 'required'; ?>>
+                                        <small class="d-block font-weight-bold">Word Final *</small>
+                                        <input type="file" name="file_word_final" id="fileWordFinal" accept=".doc,.docx" required>
                                     </span>
                                     <span class="d-inline-block mr-2">
-                                        <small class="d-block font-weight-bold">PDF Final<?= $is_dokumen_bukti ? ' (opsional)' : ' *'; ?></small>
-                                        <input type="file" name="file_pdf_final" id="filePdfFinal" accept="application/pdf,.pdf" <?= $is_dokumen_bukti ? '' : 'required'; ?>>
+                                        <small class="d-block font-weight-bold">PDF Final *</small>
+                                        <input type="file" name="file_pdf_final" id="filePdfFinal" accept="application/pdf,.pdf" required>
                                     </span>
                                     <button type="submit" name="upload_final" class="btn btn-sm btn-primary">
                                         <i class="fas fa-upload"></i> Upload Final
                                     </button>
                                 </form>
                                 <br>
-                                <?php if ($is_dokumen_bukti): ?>
-                                    <small class="form-text text-muted"><b>Dokumen Bukti: unggah minimal salah satu file final, Word atau PDF.</b></small>
-                                <?php else: ?>
-                                    <small class="form-text text-muted"><b>Dokumen selain Dokumen Bukti wajib mengunggah Word dan PDF.</b></small>
-                                <?php endif; ?>
+                                <small class="form-text text-muted"><b>Regulasi wajib mengunggah file final Word dan PDF.</b></small>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -390,14 +481,18 @@ function getBadgeClass($status) {
                     <tr>
                         <th>Nomor Dokumen</th>
                         <td>
-                            <?php if (!empty($data['nomor_surat'])): ?>
+                            <?php if (!$is_regulasi): ?>
+                                <span class="badge badge-secondary" style="font-size:1rem;">Tidak memerlukan nomor dokumen</span>
+                            <?php elseif (!empty($data['nomor_surat'])): ?>
                                 <span class="badge badge-success" style="font-size:1rem;"><?= htmlspecialchars($data['nomor_surat']); ?></span>
                             <?php else: ?>
                                 <span class="badge badge-danger" style="font-size:1rem;">Belum ada nomor</span>
                             <?php endif; ?>
-                            <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditNomorDokumen">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
+                            <?php if ($is_regulasi): ?>
+                                <button type="button" class="btn btn-sm btn-warning ml-2" data-toggle="modal" data-target="#modalEditNomorDokumen">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <tr>
@@ -421,6 +516,44 @@ function getBadgeClass($status) {
                     <?php endif; ?>
                 </table>
 
+                <?php if ($data['status'] !== 'Selesai'): ?>
+                <div class="modal fade" id="modalEditBentukDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditBentukDokumenLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['detail_pengajuan_csrf']); ?>">
+                                <div class="modal-header bg-warning">
+                                    <h5 class="modal-title" id="modalEditBentukDokumenLabel">Edit Bentuk Dokumen</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group mb-0">
+                                        <label for="bentuk_dokumen">Bentuk Dokumen <span class="text-danger">*</span></label>
+                                        <select name="bentuk_dokumen" id="bentuk_dokumen" class="form-control" required>
+                                            <option value="">-- Pilih Bentuk Dokumen --</option>
+                                            <?php foreach (app_bentuk_dokumen_options() as $bentuk): ?>
+                                                <option value="<?= htmlspecialchars($bentuk); ?>" <?= $bentuk === ($data['bentuk_dokumen'] ?? '') ? 'selected' : ''; ?>>
+                                                    <?= htmlspecialchars($bentuk); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                    <button type="submit" name="edit_bentuk_dokumen" class="btn btn-warning">
+                                        <i class="fas fa-save"></i> Simpan Bentuk Dokumen
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($is_regulasi): ?>
                 <div class="modal fade" id="modalEditNomorDokumen" tabindex="-1" role="dialog" aria-labelledby="modalEditNomorDokumenLabel" aria-hidden="true">
                     <div class="modal-dialog" role="document">
                         <div class="modal-content">
@@ -447,6 +580,7 @@ function getBadgeClass($status) {
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <hr>
 
@@ -512,10 +646,13 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
               year: 'numeric'
           });
 
+          var nomorSuratLine = nomorSurat && nomorSurat.trim() !== ''
+              ? 'No surat\t: ' + nomorSurat + '\n'
+              : '';
           var pesan = encodeURIComponent(
               'Halo Pokja ' + kodePokja + ',\n\n' +
               'Berikut ringkasan pengajuannya:\n\n' +
-              'No surat\t: ' + nomorSurat + '\n' +
+              nomorSuratLine +
               'Judul Dokumen\t: ' + judulDokumen + '\n' +
               'Jenis Dokumen\t: ' + namaJenis + '\n' +
               'Tanggal Pengajuan\t: ' + tanggalPengajuan + '\n\n' +
@@ -527,25 +664,18 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
           window.open(url, '_blank');
 }
 
-function prepareFinalUpload(isDokumenBukti) {
+function prepareFinalUpload() {
     var wordInput = document.getElementById('fileWordFinal');
     var pdfInput = document.getElementById('filePdfFinal');
     var hasWord = wordInput && wordInput.files.length > 0;
     var hasPdf = pdfInput && pdfInput.files.length > 0;
 
-    if (isDokumenBukti && !hasWord && !hasPdf) {
-        alert('Dokumen Bukti wajib mengunggah minimal satu file final: Word atau PDF.');
-        return false;
-    }
-    if (!isDokumenBukti && (!hasWord || !hasPdf)) {
-        alert('Dokumen selain Dokumen Bukti wajib mengunggah file final Word dan PDF.');
+    if (!hasWord || !hasPdf) {
+        alert('Regulasi wajib mengunggah file final Word dan PDF.');
         return false;
     }
 
-    var message = isDokumenBukti
-        ? 'Upload file final Dokumen Bukti dan ubah status menjadi Selesai?'
-        : 'Upload dokumen final Word dan PDF lalu ubah status menjadi Selesai?';
-    return prepareWaSubmit(message + ' WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.');
+    return prepareWaSubmit('Upload dokumen final Word dan PDF lalu ubah status menjadi Selesai? WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.');
 }
 </script>
     </div>

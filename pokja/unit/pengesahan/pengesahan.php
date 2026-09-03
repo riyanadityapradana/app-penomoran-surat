@@ -21,7 +21,7 @@
 	}
 
 	#pengesahanTable {
-		min-width: 1060px;
+		min-width: 1190px;
 		margin-bottom: 0 !important;
 	}
 
@@ -32,14 +32,14 @@
 	}
 
 	#pengesahanTable td:nth-child(2),
-	#pengesahanTable td:nth-child(4) {
+	#pengesahanTable td:nth-child(5) {
 		min-width: 220px;
 		white-space: normal;
 		text-align: left;
 	}
 
-	#pengesahanTable td:nth-child(7),
-	#pengesahanTable td:nth-child(8) {
+	#pengesahanTable td:nth-child(8),
+	#pengesahanTable td:nth-child(9) {
 		min-width: 130px;
 	}
 
@@ -108,6 +108,7 @@
 										<th>No</th>
 										<th style="font-size: 14px;" width="120" responsive>Standard EP</th>
 										<th style="font-size: 14px;" width="120" responsive>Jenis Dokumen</th>
+										<th style="font-size: 14px;" width="130" responsive>Bentuk Dokumen</th>
 										<th style="font-size: 14px;" width="120" responsive>Judul Dokumen</th>
 										<th style="font-size: 14px;" width="120" responsive>Tgl Ajuan</th>
 										<th style="font-size: 14px;" width="120" responsive>Status</th>
@@ -140,11 +141,13 @@
 										while ($row = mysqli_fetch_assoc($query)) {
 											$tgl_dok = date('d-m-Y', strtotime($row['tanggal_dokumen']));
 											$tgl_ajuan = date('d-m-Y', strtotime($row['tanggal_ajuan']));
+											$bentukDokumen = htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-');
 
 											echo "<tr>
 												<td>{$no}</td>
 												<td>{$row['elemen_penilaian']}</td>
 												<td>{$row['nama_jenis']}</td>
+												<td>{$bentukDokumen}</td>
 												<td>{$row['judul_dokumen']}</td>
 												<td>{$tgl_ajuan}</td>
 												<td><span class='badge badge-primary'>Selesai</span></td>
@@ -180,7 +183,7 @@
 											$no++;
 										}
 									} else {
-										echo "<tr><td colspan='8'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
+										echo "<tr><td colspan='9'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
 									}
 									?>
 								</tbody>
@@ -209,11 +212,12 @@
 					{ width: '60px', targets: 0 },
 					{ width: '230px', targets: 1 },
 					{ width: '150px', targets: 2 },
-					{ width: '230px', targets: 3 },
-					{ width: '115px', targets: 4 },
-					{ width: '100px', targets: 5 },
-					{ width: '145px', targets: 6 },
-					{ width: '130px', targets: 7, orderable: false }
+					{ width: '150px', targets: 3 },
+					{ width: '230px', targets: 4 },
+					{ width: '115px', targets: 5 },
+					{ width: '100px', targets: 6 },
+					{ width: '145px', targets: 7 },
+					{ width: '130px', targets: 8, orderable: false }
 				]
 			});
 		}

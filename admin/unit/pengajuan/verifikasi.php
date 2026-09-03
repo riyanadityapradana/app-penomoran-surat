@@ -1,6 +1,7 @@
 <?php
 require_once("../config/koneksi.php");
 require_once("../config/notifikasi.php");
+require_once("../config/dokumen_helper.php");
 require_once("../config/wa_helper.php");
 
 if (isset($_GET['id_pengajuan'])) {
@@ -23,20 +24,163 @@ if (isset($_GET['id_pengajuan'])) {
     exit;
 }
 
+$bentuk_dokumen = trim((string) ($data['bentuk_dokumen'] ?? ''));
+$is_regulasi = app_is_bentuk_regulasi($bentuk_dokumen);
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
     $catatan_admin = mysqli_real_escape_string($config, $_POST['catatan_admin']);
     $tanggal_disetujui = date('Y-m-d H:i:s');
+
+    if (!app_validate_bentuk_dokumen($bentuk_dokumen)) {
+        header('Location: main_admin.php?unit=pengajuan&err=Bentuk Dokumen belum valid. Perbaiki data pengajuan terlebih dahulu!');
+        exit;
+    }
+
+    if ($data['status'] !== 'Menunggu Verifikasi' || trim((string) ($data['nomor_surat'] ?? '')) !== '') {
+        header('Location: main_admin.php?unit=pengajuan&err=Pengajuan ini sudah pernah diverifikasi atau tidak lagi menunggu verifikasi!');
+        exit;
+    }
+
+    $jenis_result = app_resolve_jenis_pengajuan($config, $bentuk_dokumen, (int) $data['id_jenis']);
+    if (!$jenis_result['ok']) {
+        header('Location: main_admin.php?unit=pengajuan&err=' . urlencode($jenis_result['message']));
+        exit;
+    }
+    $jenis_data = $jenis_result['data'];
+    $data['id_jenis'] = (int) $jenis_data['id_jenis'];
+    $data['nama_jenis'] = $jenis_data['nama_jenis'];
+    $data['kode_jenis'] = $jenis_data['kode_jenis'];
+
+    $draft_filename = basename((string) ($data['file_draft'] ?? ''));
+    $draft_extension = strtolower(pathinfo($draft_filename, PATHINFO_EXTENSION));
+    $draft_path = __DIR__ . '/../../../assets/upload/draft_word/' . $draft_filename;
+    $allowed_draft_extensions = $is_regulasi ? ['doc', 'docx'] : ['pdf'];
+    if ($draft_filename === '' || !in_array($draft_extension, $allowed_draft_extensions, true) || !is_file($draft_path)) {
+        $required_format = $is_regulasi ? 'Word (DOC/DOCX)' : 'PDF';
+        header('Location: main_admin.php?unit=pengajuan&err=' . urlencode('File pengajuan tidak tersedia atau bukan format ' . $required_format . '. Perbaiki file sebelum verifikasi.'));
+        exit;
+    }
+
+    if (!$is_regulasi) {
+        $lock_name = 'final_nonreg_' . (int) $id_pengajuan;
+        $lock_name_sql = mysqli_real_escape_string($config, $lock_name);
+        $q_lock = mysqli_query($config, "SELECT GET_LOCK('$lock_name_sql', 10) AS lock_diperoleh");
+        $lock_result = $q_lock ? mysqli_fetch_assoc($q_lock) : null;
+        if (!$lock_result || (int) $lock_result['lock_diperoleh'] !== 1) {
+            header('Location: main_admin.php?unit=pengajuan&err=Dokumen sedang diverifikasi oleh pengguna lain. Silakan coba kembali!');
+            exit;
+        }
+
+        $final_dir = __DIR__ . '/../../../assets/upload/draft_final';
+        if (!is_dir($final_dir) && !mkdir($final_dir, 0775, true)) {
+            mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+            header('Location: main_admin.php?unit=pengajuan&err=Folder dokumen final tidak dapat dibuat!');
+            exit;
+        }
+        if (!is_writable($final_dir)) {
+            mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+            header('Location: main_admin.php?unit=pengajuan&err=Folder dokumen final tidak dapat ditulis!');
+            exit;
+        }
+
+        $final_path = $final_dir . DIRECTORY_SEPARATOR . $draft_filename;
+        if (is_file($final_path)) {
+            mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+            header('Location: main_admin.php?unit=pengajuan&err=Nama PDF sudah ada di arsip final. Silakan unggah ulang file pengajuan!');
+            exit;
+        }
+        if (!rename($draft_path, $final_path)) {
+            mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+            header('Location: main_admin.php?unit=pengajuan&err=PDF pengajuan gagal dipindahkan ke arsip final!');
+            exit;
+        }
+
+        $final_filename_sql = mysqli_real_escape_string($config, $draft_filename);
+        $q_tanggal_pengesahan = mysqli_query($config, "SHOW COLUMNS FROM tb_pengajuan_dokumen LIKE 'tanggal_pengesahan'");
+        $set_tanggal_pengesahan = $q_tanggal_pengesahan && mysqli_num_rows($q_tanggal_pengesahan) > 0
+            ? ", tanggal_pengesahan = '$tanggal_disetujui'"
+            : '';
+        $update = mysqli_query($config, "
+            UPDATE tb_pengajuan_dokumen SET
+                id_jenis = " . (int) $jenis_data['id_jenis'] . ",
+                status = 'Selesai',
+                tanggal_disetujui = '$tanggal_disetujui',
+                catatan_admin = '$catatan_admin',
+                nomor_surat = NULL,
+                file_draft = NULL,
+                file_final = '$final_filename_sql'
+                $set_tanggal_pengesahan
+            WHERE id_pengajuan = '$id_pengajuan'
+              AND status = 'Menunggu Verifikasi'
+              AND (nomor_surat IS NULL OR TRIM(nomor_surat) = '')
+        ");
+
+        $updated_rows = $update ? mysqli_affected_rows($config) : 0;
+        $update_error = $update ? '' : mysqli_error($config);
+        mysqli_query($config, "SELECT RELEASE_LOCK('$lock_name_sql')");
+
+        if (!$update || $updated_rows !== 1) {
+            if (is_file($final_path) && !is_file($draft_path)) {
+                rename($final_path, $draft_path);
+            }
+            $message = $update
+                ? 'Pengajuan sudah diproses sebelumnya.'
+                : 'Gagal menyelesaikan pengajuan: ' . $update_error;
+            header('Location: main_admin.php?unit=pengajuan&err=' . urlencode($message));
+            exit;
+        }
+
+        $data['status'] = 'Selesai';
+        $data['file_draft'] = '';
+        $data['file_final'] = $draft_filename;
+        $data['nomor_surat'] = '';
+        $pokjaLink = app_base_url() . '/pokja/main_pokja.php?unit=pengesahan';
+        $emailSubject = 'Dokumen Selesai Diverifikasi - ' . $data['judul_dokumen'];
+        $emailBody = "
+            <p>Halo <b>" . htmlspecialchars($data['nama_lengkap']) . "</b>,</p>
+            <p>Dokumen Anda telah diverifikasi dan langsung berstatus <b>Selesai</b>.</p>
+            <table border='0' cellpadding='6' cellspacing='0' style='border-collapse:collapse;'>
+                <tr><td><b>Kode Pokja</b></td><td>: " . htmlspecialchars($data['kode_pokja']) . "</td></tr>
+                <tr><td><b>Judul Dokumen</b></td><td>: " . htmlspecialchars($data['judul_dokumen']) . "</td></tr>
+                <tr><td><b>Bentuk Dokumen</b></td><td>: " . htmlspecialchars($bentuk_dokumen) . "</td></tr>
+                <tr><td><b>Status</b></td><td>: Selesai</td></tr>
+                <tr><td><b>Tanggal Pengesahan</b></td><td>: " . htmlspecialchars(app_format_datetime_id($tanggal_disetujui)) . "</td></tr>
+                <tr><td><b>Catatan Admin</b></td><td>: " . nl2br(htmlspecialchars($catatan_admin)) . "</td></tr>
+            </table>
+            <p>PDF yang diajukan menjadi dokumen final dan dapat diunduh melalui aplikasi.</p>
+            <p><a href='" . htmlspecialchars($pokjaLink) . "'>Buka Dokumen Sah</a></p>
+        ";
+        if (!empty($data['email_user'])) {
+            app_send_email($data['email_user'], $emailSubject, $emailBody);
+        }
+
+        $telegramMessage = "<b>Dokumen Selesai Diverifikasi</b>\n"
+            . "Pokja: <b>" . htmlspecialchars($data['kode_pokja']) . "</b>\n"
+            . "Judul: <b>" . htmlspecialchars($data['judul_dokumen']) . "</b>\n"
+            . "Bentuk: <b>" . htmlspecialchars($bentuk_dokumen) . "</b>\n"
+            . "Status: <b>Selesai</b>\n"
+            . "Link: " . htmlspecialchars($pokjaLink);
+        app_send_telegram($telegramMessage);
+
+        $waUrl = !empty($data['no_tlp'])
+            ? app_wa_url($data['no_tlp'], app_wa_selesai_message($data))
+            : '';
+        $redirectUrl = 'main_admin.php?unit=pengajuan&msg=Dokumen non-Regulasi berhasil diverifikasi dan langsung diselesaikan!';
+        echo "<script>";
+        if ($waUrl !== '') {
+            echo "var waWindow = window.open('', 'waNotifyWindow');";
+            echo "if (waWindow) { waWindow.location.href = " . json_encode($waUrl) . "; }";
+        }
+        echo "window.location.href = " . json_encode($redirectUrl) . ";";
+        echo "</script>";
+        exit;
+    }
 
     $jenis_dokumen = strtoupper(trim((string) $data['kode_jenis']));
     $kode_pokja = strtoupper(trim((string) $data['kode_pokja']));
 
     if (!preg_match('/^[A-Z0-9_-]{1,10}$/', $jenis_dokumen) || !preg_match('/^[A-Z0-9_-]{1,20}$/', $kode_pokja)) {
         header('Location: main_admin.php?unit=pengajuan&err=Kode jenis dokumen atau kode Pokja tidak valid!');
-        exit;
-    }
-
-    if ($data['status'] !== 'Menunggu Verifikasi' || trim((string) ($data['nomor_surat'] ?? '')) !== '') {
-        header('Location: main_admin.php?unit=pengajuan&err=Pengajuan ini sudah pernah diverifikasi atau tidak lagi menunggu verifikasi!');
         exit;
     }
 
@@ -136,6 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
                 <tr><td><b>Kode Pokja</b></td><td>: " . htmlspecialchars($data['kode_pokja']) . "</td></tr>
                 <tr><td><b>Judul Dokumen</b></td><td>: " . htmlspecialchars($data['judul_dokumen']) . "</td></tr>
                 <tr><td><b>Jenis Dokumen</b></td><td>: " . htmlspecialchars($data['nama_jenis']) . "</td></tr>
+                <tr><td><b>Bentuk Dokumen</b></td><td>: " . htmlspecialchars(!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-') . "</td></tr>
                 <tr><td><b>Nomor Surat</b></td><td>: " . htmlspecialchars($nomor_surat) . "</td></tr>
                 <tr><td><b>Tanggal Disetujui</b></td><td>: " . htmlspecialchars(app_format_datetime_id($tanggal_disetujui)) . "</td></tr>
                 <tr><td><b>Catatan Admin</b></td><td>: " . nl2br(htmlspecialchars($catatan_admin)) . "</td></tr>
@@ -151,6 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
             . "Pokja: <b>" . htmlspecialchars($data['kode_pokja']) . "</b>\n"
             . "Judul: <b>" . htmlspecialchars($data['judul_dokumen']) . "</b>\n"
             . "Jenis: <b>" . htmlspecialchars($data['nama_jenis']) . "</b>\n"
+            . "Bentuk: <b>" . htmlspecialchars(!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-') . "</b>\n"
             . "Nomor Surat: <b>" . htmlspecialchars($nomor_surat) . "</b>\n"
             . "Status: <b>Disetujui</b>\n"
             . "Link: " . htmlspecialchars($pokjaLink);
@@ -189,7 +335,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
                 <h3 class="card-title">Detail Pengajuan dari Pokja</h3>
             </div>
 
-            <form method="post" onsubmit="return prepareWaSubmit('Setujui pengajuan ini dan buat nomor surat sekarang? WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.');">
+            <?php if ($is_regulasi): ?>
+                <div class="alert alert-info mb-0 rounded-0">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Regulasi akan diberi nomor dokumen dan masuk ke tahap upload file final.
+                </div>
+            <?php else: ?>
+                <div class="alert alert-success mb-0 rounded-0">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    Dokumen non-Regulasi tidak memerlukan nomor. PDF pengajuan akan langsung menjadi dokumen final.
+                </div>
+            <?php endif; ?>
+
+            <form method="post" onsubmit="return prepareWaSubmit(<?= htmlspecialchars(json_encode($is_regulasi
+                ? 'Setujui pengajuan ini dan buat nomor surat sekarang? WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.'
+                : 'Setujui dokumen ini dan jadikan PDF pengajuan sebagai dokumen final? WhatsApp Web akan dibuka otomatis jika nomor telepon tersedia.'), ENT_QUOTES, 'UTF-8'); ?>);">
                 <div class="card-body">
                     <div class="row">
                         <div class="col-sm-12">
@@ -201,6 +361,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
                             <div class="form-group">
                                 <label>Jenis Dokumen</label>
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($data['nama_jenis']); ?>" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Bentuk Dokumen</label>
+                                <input type="text" class="form-control" value="<?= htmlspecialchars(!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-'); ?>" readonly>
                             </div>
 
                             <div class="form-group">
@@ -227,7 +392,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
                     </a>
 
                     <button type="submit" name="verifikasi" class="btn btn-app bg-success float-right">
-                        <i class="fas fa-check"></i> Setujui & Buat Nomor Surat
+                        <i class="fas <?= $is_regulasi ? 'fa-check' : 'fa-check-double'; ?>"></i>
+                        <?= $is_regulasi ? 'Setujui & Buat Nomor Surat' : 'Setujui & Selesaikan'; ?>
                     </button>
                 </div>
             </form>

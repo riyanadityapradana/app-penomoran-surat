@@ -128,6 +128,7 @@ $query = mysqli_query($config, "
                             <th style="color:white;" responsive>No</th>
                             <th style="color:white;" responsive>Tanggal Ajuan</th>
                             <th style="color:white;" responsive>Dokumen Pokja</th>
+                            <th style="color:white;" responsive>Bentuk Dokumen</th>
                             <th style="color:white;" responsive>Judul Dokumen</th>
                             <th style="color:white;" responsive>No Surat</th>
                             <th style="color:white;" responsive>Status</th>
@@ -143,6 +144,7 @@ $query = mysqli_query($config, "
                                 $judulDokumen = htmlspecialchars($row['judul_dokumen']);
                                 $kodePokja = htmlspecialchars($row['kode_pokja']);
                                 $namaJenis = htmlspecialchars($row['nama_jenis']);
+                                $bentukDokumen = htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-');
                                 $nomorSurat = htmlspecialchars($row['nomor_surat'] ?? '');
                                 $fileDraft = basename((string) ($row['file_draft'] ?? ''));
                                 $fileDraftIsPdf = strtolower(pathinfo($fileDraft, PATHINFO_EXTENSION)) === 'pdf';
@@ -150,6 +152,7 @@ $query = mysqli_query($config, "
                                         <td class='text-center'>{$no}</td>
                                         <td class='text-center'>" . date('d-m-Y', strtotime($row['tanggal_ajuan'])) . "</td>
                                         <td class='text-left'>{$kodePokja}<br><small style='color: #6c757d;'>Jenis Dokumen: {$namaJenis}</small></td>
+                                        <td class='text-center'>{$bentukDokumen}</td>
                                         <td class='text-long pengajuan-title-cell'>
                                             <div>{$judulDokumen}</div>
                                             <div class='pengajuan-row-actions'>
@@ -207,7 +210,7 @@ $query = mysqli_query($config, "
                                 $no++;
                             }
                         } else {
-                            echo "<tr><td colspan='7' class='text-center'>Belum ada data pengajuan</td></tr>";
+                            echo "<tr><td colspan='8' class='text-center'>Belum ada data pengajuan</td></tr>";
                         }
                         ?>
                     </tbody>

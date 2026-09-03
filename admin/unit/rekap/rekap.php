@@ -96,6 +96,7 @@ $pokja_list = mysqli_query($config, "SELECT DISTINCT kode_pokja FROM tb_user WHE
                             <th>Standard EP</th>
                             <th>No Dokumen</th>
                             <th>Jenis Dokumen</th>
+                            <th>Bentuk Dokumen</th>
                             <th>Judul Dokumen</th>
                             <th>Tgl Sah/ Ditolak</th>
                             <th>Pokja</th>
@@ -113,6 +114,7 @@ $pokja_list = mysqli_query($config, "SELECT DISTINCT kode_pokja FROM tb_user WHE
                                         <td class='text-long'>{$row['elemen_penilaian']}</td>
                                         <td>" . (!empty($row['nomor_surat']) ? $row['nomor_surat'] : '-') . "</td>
                                         <td>{$row['nama_jenis']}</td>
+                                        <td>" . htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-') . "</td>
                                         <td class='text-long'>{$row['judul_dokumen']}</td>
                                         <td>" . (!empty($row['tanggal_disetujui']) ? date('d-m-Y', strtotime($row['tanggal_disetujui'])) : '-') . "</td>
                                         <td>{$row['kode_pokja']}</td>
@@ -128,7 +130,7 @@ $pokja_list = mysqli_query($config, "SELECT DISTINCT kode_pokja FROM tb_user WHE
                                 $no++;
                             }
                         } else {
-                            echo "<tr><td colspan='8'><em>Tidak ada data dokumen</em></td></tr>";
+                            echo "<tr><td colspan='10'><em>Tidak ada data dokumen</em></td></tr>";
                         }
                         ?>
                     </tbody>

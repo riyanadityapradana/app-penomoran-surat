@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan
 
 	$q_edit = mysqli_query($config, "
 		SELECT p.id_pengajuan, p.elemen_penilaian, p.tanggal_dokumen, p.nomor_surat,
-			p.file_draft, p.file_final, j.kode_jenis
+			p.file_draft, p.file_final, p.bentuk_dokumen, j.kode_jenis
 		FROM tb_pengajuan_dokumen p
 		LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
 		WHERE p.id_pengajuan = '$id_pengajuan' AND p.status = 'Selesai'
@@ -110,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan
 	}
 
 	$data_edit = mysqli_fetch_assoc($q_edit);
+	$is_regulasi_edit = app_uses_regulasi_workflow($data_edit['bentuk_dokumen'] ?? '', $data_edit['nomor_surat'] ?? '');
 	$uploadDir = '../assets/upload/draft_final/';
 	$filenameBase = nama_file_final_pengesahan($data_edit, $id_pengajuan);
 	$uploadWord = null;
@@ -117,7 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan
 	$word_name = $data_edit['file_draft'];
 	$pdf_name = $data_edit['file_final'];
 
-	if (!empty($_FILES['file_word_final']['name'])) {
+	if (!$is_regulasi_edit && !empty($_FILES['file_word_final']['name'])) {
+		header('Location: main_admin.php?unit=pengesahan&err=Dokumen non-Regulasi hanya menggunakan file final PDF!');
+		exit;
+	}
+
+	if ($is_regulasi_edit && !empty($_FILES['file_word_final']['name'])) {
 		$uploadWord = simpan_file_final_pengesahan(
 			$_FILES['file_word_final'],
 			$uploadDir,
@@ -161,11 +167,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan
 		$pdf_name = $uploadPdf['filename'];
 	}
 
-	$finalSelection = app_validate_final_upload_selection(
-		$data_edit['kode_jenis'] ?? '',
-		trim((string) $word_name) !== '',
-		trim((string) $pdf_name) !== ''
-	);
+	$finalSelection = $is_regulasi_edit
+		? app_validate_final_upload_selection(
+			$data_edit['kode_jenis'] ?? '',
+			trim((string) $word_name) !== '',
+			trim((string) $pdf_name) !== ''
+		)
+		: [
+			'ok' => trim((string) $pdf_name) !== '',
+			'message' => 'Dokumen non-Regulasi wajib memiliki file final PDF.'
+		];
 	if (!$finalSelection['ok']) {
 		if ($uploadWord && !empty($uploadWord['filename'])) {
 			hapus_file_pengesahan($uploadWord['filename']);
@@ -194,7 +205,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_final_pengesahan
 	");
 
 	if ($update) {
-		header('Location: main_admin.php?unit=pengesahan&msg=File final Word dan PDF berhasil diperbarui!');
+		$success_message = $is_regulasi_edit
+			? 'File final Word dan PDF berhasil diperbarui!'
+			: 'File final PDF berhasil diperbarui!';
+		header('Location: main_admin.php?unit=pengesahan&msg=' . urlencode($success_message));
 		exit;
 	}
 
@@ -347,10 +361,13 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 		  });
 
 		  // Pesan WA
+		  var nomorBaris = nomorSurat && nomorSurat.trim() !== ''
+		      ? 'No surat\t: ' + nomorSurat + '\n'
+		      : '';
 		  var pesan = encodeURIComponent(
 		      'Halo Pokja ' + kodePokja + ',\n\n' +
 		      'Berikut ringkasan pengajuannya:\n\n' +
-		      'No surat\t: ' + nomorSurat + '\n' +
+		      nomorBaris +
 		      'Judul Dokumen\t: ' + judulDokumen + '\n' +
 		      'Jenis Dokumen\t: ' + namaJenis + '\n' +
 		      'Tanggal Pengajuan\t: ' + tanggalPengajuan + '\n\n' +
@@ -376,7 +393,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 	}
 
 	#example0 {
-		min-width: 980px;
+		min-width: 1120px;
 		margin-bottom: 0 !important;
 	}
 
@@ -386,7 +403,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 		white-space: nowrap;
 	}
 
-	#example0 td:nth-child(4) {
+	#example0 td:nth-child(5) {
 		min-width: 190px;
 		white-space: normal;
 	}
@@ -503,6 +520,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 										<th>No</th>
 										<th>No Dokumen</th>
 										<th>Jenis Dokumen</th>
+										<th>Bentuk Dokumen</th>
 										<th>Standard EP</th>
 										<th>Judul Dokumen</th>
 										<th>Pokja</th>
@@ -546,10 +564,14 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 											$jenis_dokumen_html = htmlspecialchars($row['nama_jenis'])
 												. "<span class='pengesahan-date'><i class='far fa-calendar-check mr-1'></i>Disahkan {$tanggal_pengesahan}</span>"
 												. ($is_baru ? "<span class='pengesahan-new-badge'><i class='fas fa-star mr-1'></i>Baru</span>" : '');
+											$bentuk_dokumen_html = htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-');
+											$nomor_surat_html = !empty($row['nomor_surat'])
+												? htmlspecialchars($row['nomor_surat'])
+												: '<span class="text-muted">Tanpa nomor</span>';
 											echo "<tr>
 												<td>{$no}</td>
 												<td>
-													{$row['nomor_surat']}
+													{$nomor_surat_html}
 													<br><br>
 													<a href='main_admin.php?unit=detail_pengesahan&id_pengajuan={$row['id_pengajuan']}' class='btn btn-sm btn-info' title='Lihat detail'>
 														<i class='fas fa-eye'></i>
@@ -568,17 +590,34 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 													</form>
 												</td>
 												<td>{$jenis_dokumen_html}</td>
+												<td>{$bentuk_dokumen_html}</td>
 												<td>" . htmlspecialchars($row['elemen_penilaian']) . "</td>
 												<td>{$row['judul_dokumen']}</td>
 												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
 												<td>{$tgl_dok}</td>
 												<td><span class='badge badge-primary'>Selesai</span></td>
 											</tr>";
+											$is_regulasi_row = app_uses_regulasi_workflow(
+												$row['bentuk_dokumen'] ?? '',
+												$row['nomor_surat'] ?? ''
+											);
+											$word_final_field = $is_regulasi_row ? "
+																			<div class='form-group'>
+																				<label>File Word Final</label>
+																				<input type='file' name='file_word_final' class='form-control-file' accept='.doc,.docx'>
+																				<small class='form-text text-muted'>Kosongkan jika Word final tidak ingin diubah.</small>
+																			</div>" : '';
+											$confirm_edit_final = $is_regulasi_row
+												? 'Update file final Word dan PDF dokumen ini?'
+												: 'Update file final PDF dokumen ini?';
+											$pdf_final_note = $is_regulasi_row
+												? 'Kosongkan jika PDF final tidak ingin diubah. File akan disimpan ke folder draft_final.'
+												: 'Dokumen non-Regulasi hanya menggunakan file final PDF. Kosongkan jika file tidak ingin diubah.';
 											$modal_edit_final .= "
 											<div class='modal fade' id='modalEditFinal{$row['id_pengajuan']}' tabindex='-1' role='dialog' aria-labelledby='modalEditFinalLabel{$row['id_pengajuan']}' aria-hidden='true'>
 												<div class='modal-dialog modal-dialog-centered' role='document'>
 													<div class='modal-content'>
-														<form method='POST' enctype='multipart/form-data' onsubmit=\"return confirm('Update file final Word dan PDF dokumen ini?');\">
+														<form method='POST' enctype='multipart/form-data' onsubmit=\"return confirm('{$confirm_edit_final}');\">
 															<div class='modal-header bg-warning'>
 																<h5 class='modal-title' id='modalEditFinalLabel{$row['id_pengajuan']}'>
 																	<i class='fas fa-edit'></i> Edit File Final
@@ -591,21 +630,17 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 																<input type='hidden' name='id_pengajuan' value='{$row['id_pengajuan']}'>
 																<div class='form-group'>
 																	<label>Nomor Dokumen</label>
-																	<input type='text' class='form-control' value='" . htmlspecialchars($row['nomor_surat']) . "' readonly>
+															<input type='text' class='form-control' value='" . htmlspecialchars(!empty($row['nomor_surat']) ? $row['nomor_surat'] : 'Tidak memerlukan nomor dokumen') . "' readonly>
 																</div>
 																<div class='form-group'>
 																	<label>Judul Dokumen</label>
 																	<input type='text' class='form-control' value='" . htmlspecialchars($row['judul_dokumen']) . "' readonly>
 																</div>
-																<div class='form-group'>
-																	<label>File Word Final</label>
-																	<input type='file' name='file_word_final' class='form-control-file' accept='.doc,.docx'>
-																	<small class='form-text text-muted'>Kosongkan jika Word final tidak ingin diubah.</small>
-																</div>
+																{$word_final_field}
 																<div class='form-group'>
 																	<label>File PDF Final</label>
 																	<input type='file' name='file_pdf_final' class='form-control-file' accept='application/pdf'>
-																	<small class='form-text text-muted'>Kosongkan jika PDF final tidak ingin diubah. File akan disimpan ke folder draft_final.</small>
+																	<small class='form-text text-muted'>{$pdf_final_note}</small>
 																</div>
 															</div>
 															<div class='modal-footer'>
@@ -621,7 +656,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 											$no++;
 										}
 									} else {
-										echo "<tr><td colspan='8'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
+										echo "<tr><td colspan='9'><em>Tidak ada dokumen yang telah disahkan</em></td></tr>";
 									}
 									?>
 								</tbody>
@@ -682,11 +717,12 @@ $(document).ready(function() {
             { "width": "60px", "targets": 0 },
             { "width": "180px", "targets": 1 },
             { "width": "130px", "targets": 2 },
-            { "width": "210px", "targets": 3 },
-            { "width": "115px", "targets": 4 },
-            { "width": "100px", "targets": 5 },
-            { "width": "150px", "targets": 6 },
-            { "width": "95px", "targets": 7 }
+            { "width": "130px", "targets": 3 },
+            { "width": "150px", "targets": 4 },
+            { "width": "210px", "targets": 5 },
+            { "width": "100px", "targets": 6 },
+            { "width": "115px", "targets": 7 },
+            { "width": "95px", "targets": 8 }
         ],
         "lengthMenu": [[5, 10, 25, 50], [5, 10, 25, 50]],
         "language": {

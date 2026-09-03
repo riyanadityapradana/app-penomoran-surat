@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tolak'])) {
                 <tr><td><b>Kode Pokja</b></td><td>: " . htmlspecialchars($data['kode_pokja']) . "</td></tr>
                 <tr><td><b>Judul Dokumen</b></td><td>: " . htmlspecialchars($data['judul_dokumen']) . "</td></tr>
                 <tr><td><b>Jenis Dokumen</b></td><td>: " . htmlspecialchars($data['nama_jenis']) . "</td></tr>
+                <tr><td><b>Bentuk Dokumen</b></td><td>: " . htmlspecialchars(!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-') . "</td></tr>
                 <tr><td><b>Tanggal Status</b></td><td>: " . htmlspecialchars(app_format_datetime_id($tanggal_disetujui)) . "</td></tr>
                 <tr><td><b>Catatan Admin</b></td><td>: " . nl2br(htmlspecialchars($catatan_admin)) . "</td></tr>
             </table>
@@ -58,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tolak'])) {
             . "Pokja: <b>" . htmlspecialchars($data['kode_pokja']) . "</b>\n"
             . "Judul: <b>" . htmlspecialchars($data['judul_dokumen']) . "</b>\n"
             . "Jenis: <b>" . htmlspecialchars($data['nama_jenis']) . "</b>\n"
+            . "Bentuk: <b>" . htmlspecialchars(!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-') . "</b>\n"
             . "Status: <b>Ditolak</b>\n"
             . "Catatan: <b>" . htmlspecialchars($catatan_admin) . "</b>\n"
             . "Link: " . htmlspecialchars($pokjaLink);
@@ -94,6 +96,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tolak'])) {
                             <div class="form-group">
                                 <label>Jenis Dokumen</label>
                                 <input type="text" class="form-control" value="<?= htmlspecialchars($data['nama_jenis']); ?>" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Bentuk Dokumen</label>
+                                <input type="text" class="form-control" value="<?= htmlspecialchars(!empty($data['bentuk_dokumen']) ? $data['bentuk_dokumen'] : '-'); ?>" readonly>
                             </div>
 
                             <div class="form-group">
