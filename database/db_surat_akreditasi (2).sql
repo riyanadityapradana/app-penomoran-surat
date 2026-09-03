@@ -94,7 +94,8 @@ CREATE TABLE `tb_pengajuan_dokumen` (
   `file_final` varchar(255) DEFAULT NULL,
   `catatan_admin` text DEFAULT NULL,
   `no_tlp` varchar(15) NOT NULL,
-  `bentuk_dokumen` enum('Regulasi','Dokumen Bukti','Dokumen Lainnya') DEFAULT NULL
+  `bentuk_dokumen` enum('Regulasi','Dokumen Bukti','Dokumen Lainnya') DEFAULT NULL,
+  `finalized_by` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- --------------------------------------------------------
@@ -161,7 +162,8 @@ ALTER TABLE `tb_jenis_dokumen`
 ALTER TABLE `tb_pengajuan_dokumen`
   ADD PRIMARY KEY (`id_pengajuan`),
   ADD KEY `id_user` (`id_user`),
-  ADD KEY `id_jenis` (`id_jenis`);
+  ADD KEY `id_jenis` (`id_jenis`),
+  ADD KEY `idx_pengajuan_finalized_by` (`finalized_by`);
 
 --
 -- Indeks untuk tabel `tb_user`
@@ -213,7 +215,8 @@ ALTER TABLE `tb_dokumen_pendukung`
 --
 ALTER TABLE `tb_pengajuan_dokumen`
   ADD CONSTRAINT `tb_pengajuan_dokumen_ibfk_1` FOREIGN KEY (`id_user`) REFERENCES `tb_user` (`id_user`) ON DELETE CASCADE,
-  ADD CONSTRAINT `tb_pengajuan_dokumen_ibfk_2` FOREIGN KEY (`id_jenis`) REFERENCES `tb_jenis_dokumen` (`id_jenis`) ON DELETE CASCADE;
+  ADD CONSTRAINT `tb_pengajuan_dokumen_ibfk_2` FOREIGN KEY (`id_jenis`) REFERENCES `tb_jenis_dokumen` (`id_jenis`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_pengajuan_finalized_by` FOREIGN KEY (`finalized_by`) REFERENCES `tb_user` (`id_user`) ON DELETE SET NULL ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

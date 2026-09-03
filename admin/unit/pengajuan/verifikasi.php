@@ -30,6 +30,7 @@ $is_regulasi = app_is_bentuk_regulasi($bentuk_dokumen);
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
     $catatan_admin = mysqli_real_escape_string($config, $_POST['catatan_admin']);
     $tanggal_disetujui = date('Y-m-d H:i:s');
+    $finalized_by = (int) ($_SESSION['id_user'] ?? 0);
 
     if (!app_validate_bentuk_dokumen($bentuk_dokumen)) {
         header('Location: main_admin.php?unit=pengajuan&err=Bentuk Dokumen belum valid. Perbaiki data pengajuan terlebih dahulu!');
@@ -108,7 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verifikasi'])) {
                 catatan_admin = '$catatan_admin',
                 nomor_surat = NULL,
                 file_draft = NULL,
-                file_final = '$final_filename_sql'
+                file_final = '$final_filename_sql',
+                finalized_by = $finalized_by
                 $set_tanggal_pengesahan
             WHERE id_pengajuan = '$id_pengajuan'
               AND status = 'Menunggu Verifikasi'

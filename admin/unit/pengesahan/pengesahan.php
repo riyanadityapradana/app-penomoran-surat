@@ -409,7 +409,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 	}
 
 	#example0 td:last-child {
-		min-width: 132px;
+		min-width: 170px;
 	}
 
 	#example0 td:last-child .btn {
@@ -430,6 +430,81 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 	div.dataTables_scrollHead table.dataTable,
 	div.dataTables_scrollBody table.dataTable {
 		margin-bottom: 0 !important;
+	}
+
+	#example0_wrapper .dataTables_length,
+	#example0_wrapper .dataTables_info,
+	#example0_wrapper .dataTables_paginate {
+		display: none !important;
+	}
+
+	.sidokar-pagination {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: .2rem;
+		min-height: 34px;
+		margin-top: .55rem;
+		padding: .25rem .35rem;
+		color: #3f4752;
+		font-size: .78rem;
+		white-space: nowrap;
+	}
+
+	.sidokar-page-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 24px;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: #65707d;
+		cursor: pointer;
+	}
+
+	.sidokar-page-button:hover:not(:disabled),
+	.sidokar-page-button:focus:not(:disabled) {
+		color: #006633;
+		background: #e9f5ef;
+		outline: 1px solid #b8d8c7;
+	}
+
+	.sidokar-page-button:disabled {
+		opacity: .3;
+		cursor: default;
+	}
+
+	.sidokar-page-input {
+		width: 38px;
+		height: 25px;
+		padding: 1px 4px;
+		border: 1px solid #8c96a2;
+		border-radius: 0;
+		background: #fff;
+		color: #1f2933;
+		font-size: .78rem;
+		line-height: 1;
+		text-align: center;
+	}
+
+	.sidokar-page-input:focus,
+	.sidokar-page-size:focus {
+		border-color: #006633;
+		outline: 1px solid #006633;
+	}
+
+	.sidokar-page-size {
+		height: 27px;
+		min-width: 55px;
+		margin-left: .35rem;
+		padding: 1px 3px;
+		border: 1px solid #8c96a2;
+		border-radius: 0;
+		background: #fff;
+		color: #1f2933;
+		font-size: .78rem;
 	}
 
 	.pengesahan-date {
@@ -525,7 +600,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 										<th>Judul Dokumen</th>
 										<th>Pokja</th>
 										<th>Tgl Dokumen</th>
-										<th>Status</th>
+										<th>Diselesaikan Oleh</th>
 										<!-- <th>File PDF Final</th> -->
 									</tr>
 								</thead>
@@ -545,10 +620,12 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 
 									$query = mysqli_query($config, "
 										SELECT p.*, j.nama_jenis, k.kode_pokja, k.nama_lengkap,
+											admin_final.nama_lengkap AS nama_admin_final,
 											$tanggal_pengesahan_sql AS tanggal_pengesahan_efektif
 										FROM tb_pengajuan_dokumen p
 										LEFT JOIN tb_jenis_dokumen j ON p.id_jenis = j.id_jenis
 										LEFT JOIN tb_user k ON p.id_user = k.id_user
+										LEFT JOIN tb_user admin_final ON p.finalized_by = admin_final.id_user
 										$where
 										ORDER BY tanggal_pengesahan_efektif DESC, p.id_pengajuan DESC
 									");
@@ -565,9 +642,12 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 												. "<span class='pengesahan-date'><i class='far fa-calendar-check mr-1'></i>Disahkan {$tanggal_pengesahan}</span>"
 												. ($is_baru ? "<span class='pengesahan-new-badge'><i class='fas fa-star mr-1'></i>Baru</span>" : '');
 											$bentuk_dokumen_html = htmlspecialchars(!empty($row['bentuk_dokumen']) ? $row['bentuk_dokumen'] : '-');
-											$nomor_surat_html = !empty($row['nomor_surat'])
-												? htmlspecialchars($row['nomor_surat'])
-												: '<span class="text-muted">Tanpa nomor</span>';
+										$nomor_surat_html = !empty($row['nomor_surat'])
+											? htmlspecialchars($row['nomor_surat'])
+											: '<span class="text-muted">Tanpa nomor</span>';
+										$admin_final_html = !empty($row['nama_admin_final'])
+											? '<span class="font-weight-bold"><i class="fas fa-user-check mr-1 text-success"></i>' . htmlspecialchars($row['nama_admin_final']) . '</span><br><small class="text-muted">Admin Sekretariat</small>'
+											: '<span class="text-muted"><i class="fas fa-user-clock mr-1"></i>Belum tercatat</span>';
 											echo "<tr>
 												<td>{$no}</td>
 												<td>
@@ -595,7 +675,7 @@ function kirimWA(idPengajuan, noTel, kodePokja, nomorSurat, judulDokumen, namaJe
 												<td>{$row['judul_dokumen']}</td>
 												<td>{$row['kode_pokja']}<br><small>{$row['nama_lengkap']}</small></td>
 												<td>{$tgl_dok}</td>
-												<td><span class='badge badge-primary'>Selesai</span></td>
+												<td>{$admin_final_html}</td>
 											</tr>";
 											$is_regulasi_row = app_uses_regulasi_workflow(
 												$row['bentuk_dokumen'] ?? '',
@@ -702,13 +782,92 @@ function sinkronkanStandardEp(pertahankanPilihan) {
         : '';
 }
 
+function pasangPaginationSidokar(table) {
+    var wrapper = $(table.table().container());
+    var pagination = $(
+        '<div class="sidokar-pagination" aria-label="Navigasi halaman tabel">' +
+            '<button type="button" class="sidokar-page-button" data-page-action="first" title="Halaman pertama" aria-label="Halaman pertama"><i class="fas fa-step-backward"></i></button>' +
+            '<button type="button" class="sidokar-page-button" data-page-action="previous" title="Halaman sebelumnya" aria-label="Halaman sebelumnya"><i class="fas fa-caret-left"></i></button>' +
+            '<span>Page</span>' +
+            '<input type="text" class="sidokar-page-input" inputmode="numeric" aria-label="Nomor halaman">' +
+            '<span>of <strong class="sidokar-page-total">1</strong></span>' +
+            '<button type="button" class="sidokar-page-button" data-page-action="next" title="Halaman berikutnya" aria-label="Halaman berikutnya"><i class="fas fa-caret-right"></i></button>' +
+            '<button type="button" class="sidokar-page-button" data-page-action="last" title="Halaman terakhir" aria-label="Halaman terakhir"><i class="fas fa-step-forward"></i></button>' +
+            '<select class="sidokar-page-size" title="Jumlah data per halaman" aria-label="Jumlah data per halaman">' +
+                '<option value="10">10</option>' +
+                '<option value="20">20</option>' +
+                '<option value="30">30</option>' +
+                '<option value="-1">All</option>' +
+            '</select>' +
+        '</div>'
+    );
+    var pageInput = pagination.find('.sidokar-page-input');
+    var pageTotal = pagination.find('.sidokar-page-total');
+    var pageSize = pagination.find('.sidokar-page-size');
+
+    wrapper.find('.sidokar-pagination').remove();
+    wrapper.append(pagination);
+
+    function perbaruiPagination() {
+        var info = table.page.info();
+        var totalHalaman = Math.max(info.pages, 1);
+        var halamanAktif = info.pages > 0 ? info.page + 1 : 1;
+        var tidakAdaData = info.recordsDisplay === 0;
+
+        pageInput.val(halamanAktif)
+            .attr('maxlength', String(totalHalaman).length)
+            .prop('disabled', tidakAdaData);
+        pageTotal.text(totalHalaman);
+        pageSize.val(String(info.length));
+
+        pagination.find('[data-page-action="first"], [data-page-action="previous"]')
+            .prop('disabled', tidakAdaData || info.page <= 0);
+        pagination.find('[data-page-action="next"], [data-page-action="last"]')
+            .prop('disabled', tidakAdaData || info.page >= info.pages - 1);
+    }
+
+    function bukaHalamanInput() {
+        var info = table.page.info();
+        var halaman = parseInt(pageInput.val(), 10);
+        var totalHalaman = Math.max(info.pages, 1);
+
+        if (isNaN(halaman)) {
+            perbaruiPagination();
+            return;
+        }
+
+        halaman = Math.min(Math.max(halaman, 1), totalHalaman);
+        table.page(halaman - 1).draw('page');
+    }
+
+    pagination.find('.sidokar-page-button').on('click', function() {
+        table.page($(this).data('page-action')).draw('page');
+    });
+
+    pageInput.on('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+    }).on('change', bukaHalamanInput).on('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            bukaHalamanInput();
+        }
+    });
+
+    pageSize.on('change', function() {
+        table.page.len(parseInt(this.value, 10)).draw();
+    });
+
+    table.on('draw.dt.sidokarPagination length.dt.sidokarPagination', perbaruiPagination);
+    perbaruiPagination();
+}
+
 $(document).ready(function() {
     $('#kode_pokja').on('change', function() {
         sinkronkanStandardEp(false);
     });
     sinkronkanStandardEp(true);
 
-    $('#example0').DataTable({
+    var tabelPengesahan = $('#example0').DataTable({
         "pageLength": 10,
         "scrollX": true,
         "autoWidth": false,
@@ -724,7 +883,7 @@ $(document).ready(function() {
             { "width": "115px", "targets": 7 },
             { "width": "95px", "targets": 8 }
         ],
-        "lengthMenu": [[5, 10, 25, 50], [5, 10, 25, 50]],
+        "lengthMenu": [[10, 20, 30, -1], [10, 20, 30, "All"]],
         "language": {
             "lengthMenu": "Tampilkan _MENU_ entri per halaman",
             "zeroRecords": "Tidak ada data yang ditemukan",
@@ -740,6 +899,8 @@ $(document).ready(function() {
             }
         }
     });
+
+    pasangPaginationSidokar(tabelPengesahan);
 });
 
 </script>

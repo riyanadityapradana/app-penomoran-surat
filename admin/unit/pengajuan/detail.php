@@ -248,13 +248,15 @@ if (isset($_POST['upload_final'])) {
                 $pdf_name_raw = $uploadPdf ? $uploadPdf['filename'] : '';
                 $word_name = mysqli_real_escape_string($config, $word_name_raw);
                 $pdf_name = mysqli_real_escape_string($config, $pdf_name_raw);
+				$finalized_by = (int) ($_SESSION['id_user'] ?? 0);
 				$set_tanggal_pengesahan = $has_tanggal_pengesahan ? ', tanggal_pengesahan=NOW()' : '';
 
                 $updateFinal = mysqli_query($config, "
                     UPDATE tb_pengajuan_dokumen
                     SET file_draft='$word_name',
                         file_final='$pdf_name',
-						status='Selesai'
+						status='Selesai',
+						finalized_by=$finalized_by
 						$set_tanggal_pengesahan
                     WHERE id_pengajuan='$id_pengajuan' AND status='Disetujui'
                 ");
